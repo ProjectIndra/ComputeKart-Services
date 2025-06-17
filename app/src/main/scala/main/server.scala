@@ -2,23 +2,25 @@ package main
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
+import akka.http.scaladsl.server.Directives._
+
+import users.UsersRoutes
 
 object Server{
     implicit val system: ActorSystem = ActorSystem("managementServer")
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     implicit val executionContext = system.dispatcher
 
-    val route =
+    val routes =
         path("health") {
             get {
                 complete("Server is up and running!")
             }
-        }
+        } ~ UsersRoutes.route
 
     def run(): Unit = {
-        val bindingFuture = Http().bindAndHandle(route, "localhost", 5000)
+        val bindingFuture = Http().bindAndHandle(routes, "localhost", 5000)
 
         bindingFuture.map { binding =>
             println(s"Server online at http://${binding.localAddress.getHostString}:${binding.localAddress.getPort}/")
