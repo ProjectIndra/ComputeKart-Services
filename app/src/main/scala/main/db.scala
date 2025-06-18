@@ -5,6 +5,11 @@ import com.typesafe.config.ConfigFactory
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 
+import users.models.UserModel
+import cli.models.CliModel
+import vms.models.{VmDetailsModel, VmStatusModel, WireguardConnectionModel}
+import providers.models.{ProviderConfModel, ProviderModel}
+
 object DB {
   // Load configuration
   private val config = ConfigFactory.load()
@@ -27,4 +32,17 @@ object DB {
       ce
     )
   } yield xa
+
+  // method to initalize the all the required tables
+  def initialize(): IO[Unit] = {
+    for {
+      _ <- UserModel.createUsersTable()
+      _ <- CliModel.createCliSessionsTable()
+      _ <- VmDetailsModel.createVmDetailsTable()
+      _ <- VmStatusModel.createVmStatusTable()
+      _ <- WireguardConnectionModel.createWireguardConnectionTable()
+      _ <- ProviderConfModel.createProviderConfTable()
+      _ <- ProviderModel.createProviderTable()
+    } yield ()
+  }
 }

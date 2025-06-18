@@ -17,7 +17,8 @@ object Server{
             get {
                 complete("Server is up and running!")
             }
-        } ~ UsersRoutes.route
+        } ~
+        UsersRoutes.route
 
     def run(): Unit = {
         val bindingFuture = Http().bindAndHandle(routes, "localhost", 5000)

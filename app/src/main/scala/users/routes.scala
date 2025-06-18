@@ -2,17 +2,14 @@ package users
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import users.controllers.{RegisterController, LoginController}
 
 object UsersRoutes {
-  def route:Route =
-    path("register") {
-      post {
-        complete("User registered")
-      }
-    } ~
-    path("login") {
-      post {
-        complete("User logged in")
-      }
+  val route: Route =
+    pathPrefix("users") {
+      concat(
+        RegisterController.register,
+        LoginController.login
+      )
     }
 }

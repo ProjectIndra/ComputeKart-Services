@@ -50,6 +50,24 @@ dependencies {
 
     // config library for application configuration
     implementation 'com.typesafe:config:1.4.2'
+
+    // Circe for JSON serialization/deserialization
+    implementation 'io.circe:circe-core_2.13:0.14.5'
+    implementation 'io.circe:circe-generic_2.13:0.14.5'
+    implementation 'io.circe:circe-parser_2.13:0.14.5'
+
+    // PDI JWT for handling JWT tokens
+    implementation 'com.github.jwt-scala:jwt-core_2.13:10.0.4'
+
+    // BCrypt for password hashing
+    implementation 'org.mindrot:jbcrypt:0.4'
+
+    // Akka HTTP Circe integration for JSON support in HTTP routes
+    implementation 'de.heikoseeberger:akka-http-circe_2.13:1.39.2'
+
+    // Akka HTTP testing dependencies
+    testImplementation 'com.typesafe.akka:akka-http-testkit_2.13:10.5.0'
+    testImplementation 'org.scalatest:scalatest_2.13:3.2.17'
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
