@@ -14,9 +14,9 @@ object Server{
     implicit val executionContext: scala.concurrent.ExecutionContextExecutor = system.dispatcher
 
     val routes =
-        path("health") {
+        pathSingleSlash {
             get {
-                complete("Server is up and running!")
+            complete("Welcome to the ComputeKart Management Server!")
             }
         } ~
         UsersRoutes.route ~
