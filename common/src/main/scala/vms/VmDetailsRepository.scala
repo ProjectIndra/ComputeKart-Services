@@ -93,4 +93,43 @@ object VmDetailsRepository {
       }
     }
   }
+
+  def isVmActive(vmId: String, clientUserId: String): IO[Either[Throwable, Boolean]] = {
+    val query =
+      sql"""
+        SELECT COUNT(*)
+        FROM vm_status
+        WHERE vm_id = $vmId
+        AND client_user_id = $clientUserId
+        AND (status = 'active' OR status = 'inactive')
+        AND vm_deleted = false
+      """.query[Int].unique
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(count) => Right(count > 0)
+        case Left(e) =>
+          println(s"Error checking VM active status: ${e.getMessage}")
+          Left(e)
+      }
+    }
+  }
+  
+  def getVmClients(providerUserId: String): IO[Either[Throwable, List[(String, String)]]] = {
+    val query =
+      sql"""
+        SELECT client_user_id, vm_id
+        FROM vm_details
+        WHERE provider_user_id = $providerUserId
+      """.query[(String, String)].to[List]
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(clients) => Right(clients)
+        case Left(e) =>
+          println(s"Error fetching VM clients for provider $providerUserId: ${e.getMessage}")
+          Left(e)
+      }
+    }
+  }
 }

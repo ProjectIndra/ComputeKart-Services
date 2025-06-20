@@ -9,11 +9,11 @@ import cats.syntax.either._
 import vms._
 import provider._
 
-object VmActivationService {
+object VmCrudService {
 
   def activateVm(providerId: String, vmId: String, userId: String): IO[Either[String, String]] = {
     for {
-      providerResult <- ProviderService.getProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
+      providerResult <- ProviderDetailsRepository.getProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
       internalVmNameResult <- VmDetailsRepository.getInternalVmName(vmId, userId) // Returns IO[Either[String, String]]
       internalVmName <- IO.fromEither(internalVmNameResult) // Unwraps the Either
       provider <- IO.fromEither(providerResult.leftMap(new RuntimeException(_))) // Unwraps the Either to get the provider object
@@ -29,7 +29,7 @@ object VmActivationService {
 
   def deactivateVm(providerId: String, vmId: String, userId: String): IO[Either[String, String]] = {
     for {
-      providerResult <- ProviderService.getProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
+      providerResult <- ProviderDetailsRepository.getProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
       provider <- IO.fromEither(providerResult.leftMap(new RuntimeException(_))) // Unwraps the Either
       internalVmNameResult <- VmDetailsRepository.getInternalVmName(vmId, userId) // Returns IO[Either[String, String]]
       internalVmName <- IO.fromEither(internalVmNameResult) // Unwraps the Either
@@ -39,7 +39,7 @@ object VmActivationService {
 
   def deleteVm(providerId: String, vmId: String, userId: String): IO[Either[String, String]] = {
     for {
-      providerResult <- ProviderService.getProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
+      providerResult <- ProviderDetailsRepository.getProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
       provider <- IO.fromEither(providerResult.leftMap(new RuntimeException(_))) // Unwraps the Either
       internalVmNameResult <- VmDetailsRepository.getInternalVmName(vmId, userId) // Returns IO[Either[String, String]]
       internalVmName <- IO.fromEither(internalVmNameResult) // Unwraps the Either

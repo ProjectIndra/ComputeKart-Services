@@ -5,6 +5,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import doobie.implicits._
 import doobie.util.transactor.Transactor
+import doobie.util.Read
+import doobie.util.Read.derived
 import main.SqlDB
 
 case class VmStatus(
@@ -16,10 +18,25 @@ case class VmStatus(
     vmDeleted: Boolean = false,
     vmDeletedAt: Option[LocalDateTime] = None
 )
-
 object VmStatusRepository {
 
-    def validateVmId(vmId: String, userId: String): IO[Either[Throwable, Unit]] = {
+  implicit val vmStatusRead: doobie.Read[VmStatus] = {
+    import doobie.util.Get
+    import doobie.util.Read
+
+    implicit val localDateTimeGet: Get[LocalDateTime] =
+      Get[java.sql.Timestamp].map(_.toLocalDateTime)
+
+    implicit val optionLocalDateTimeGet: Get[Option[LocalDateTime]] =
+      Get[java.sql.Timestamp].map(Option(_)).map(_.map(_.toLocalDateTime))
+
+    Read[(String, String, String, String, String, Boolean, Option[LocalDateTime])].map {
+      case (vmId, vmName, status, providerId, clientUserId, vmDeleted, vmDeletedAt) =>
+        VmStatus(vmId, vmName, status, providerId, clientUserId, vmDeleted, vmDeletedAt)
+    }
+  }
+
+  def validateVmId(vmId: String, userId: String): IO[Either[Throwable, Unit]] = {
     val query =
       sql"""
         SELECT COUNT(*)
@@ -73,6 +90,41 @@ object VmStatusRepository {
         case Right(_) => Right(())
         case Left(e) =>
           println(s"Error inserting VM status: ${e.getMessage}")
+          Left(e)
+      }
+    }
+  }
+
+  def allActiveVmsForUser(userId: String): IO[Either[Throwable, List[VmStatus]]] = {
+    val query =
+      sql"""
+        SELECT vm_id, vm_name, status, provider_id, client_user_id, vm_deleted, vm_deleted_at
+        FROM vm_status
+        WHERE client_user_id = $userId AND vm_deleted = false AND status IN ('active', 'pending')
+      """.query[VmStatus].to[List]
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(vms) => Right(vms)
+        case Left(e) =>
+          println(s"Error fetching active VMs for user $userId: ${e.getMessage}")
+          Left(e)
+      }
+    }
+  }
+
+  def allVmsForUser(userId: String): IO[Either[Throwable, List[VmStatus]]] = {
+    val query =
+      sql"""
+        SELECT vm_id, vm_name, status, provider_id, client_user_id, vm_deleted, vm_deleted_at
+        FROM vm_status
+        WHERE client_user_id = $userId
+      """.query[VmStatus].to[List]
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(vms) => Right(vms)
+        case Left(e) =>
+          println(s"Error fetching all VMsfor user $userId: ${e.getMessage}")
           Left(e)
       }
     }

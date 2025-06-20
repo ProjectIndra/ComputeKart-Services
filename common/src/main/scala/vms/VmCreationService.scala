@@ -10,6 +10,7 @@ import vms.VmDetails
 import vms.VmStatus
 import provider.ProviderService.createVmOnProvider
 import provider.ProviderDetails
+import provider.ProviderDetailsRepository
 
 object VmCreationService {
 
@@ -62,13 +63,13 @@ object VmCreationService {
       generatedVmName: String,
       internalVmName: String
   ): Either[String, String] = {
-    val providerResponse = ProviderService.fetchProviderDetails(providerId)
-    providerResponse match {
-      case None => return Left("Provider not found")
-      case Some(provider) if provider.providerStatus != "active" =>
-        return Left("Provider is not active")
-      case Some(provider) =>
-        createVmAfterProviderVerification(provider, clientUserId, vcpus, ram, storage, vmImageType, generatedVmName, internalVmName, providerId)
+  val providerResponse = ProviderDetailsRepository.fetchProviderDetails(providerId).unsafeRunSync()
+  providerResponse match {
+    case None => return Left("Provider not found")
+    case Some(provider) if provider.providerStatus != "active" =>
+      return Left("Provider is not active")
+    case Some(provider) =>
+      createVmAfterProviderVerification(provider, clientUserId, vcpus, ram, storage, vmImageType, generatedVmName, internalVmName, providerId)
   }
 }
 
