@@ -2,3 +2,5 @@ rootProject.name = 'computekart'
 
 include 'common'
 include 'management-server'
+include 'tunnel-server'
+include 'tunnel-client'

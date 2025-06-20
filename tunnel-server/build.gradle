@@ -1,0 +1,87 @@
+plugins {
+    // Apply the scala Plugin to add support for Scala.
+    id 'scala'
+
+    // Apply the application plugin to add support for building a CLI application in Java.
+    id 'application'
+}
+
+repositories {
+    // Use Maven Central for resolving dependencies.
+    mavenCentral()
+    maven {
+        url 'https://repo.akka.io/maven/'
+        url 'https://mvnrepository.com/artifact/org.tpolecat/doobie-core'
+    }
+}
+
+dependencies {
+
+    // importing the common project
+    implementation project(':common')
+    
+    // Use Scala 2.13 in our library project
+    implementation libs.scala.library
+
+    // This dependency is used by the application.
+    implementation libs.guava
+
+    // Use Scalatest for testing our library
+    testImplementation libs.junit
+    testImplementation libs.scalatest.v2.v13
+    testImplementation libs.junit.v4.v13.v2.v13
+
+    // Need scala-xml at test runtime
+    testRuntimeOnly libs.scala.xml.v2.v13
+
+    // Akka HTTP and related dependencies
+    implementation 'com.typesafe.akka:akka-http_2.13:10.5.0' // Compatible with Akka 2.7.x
+    implementation 'com.typesafe.akka:akka-stream_2.13:2.7.0' // Update to 2.7.0
+    implementation 'com.typesafe.akka:akka-actor_2.13:2.7.0' // Update to 2.7.0
+    implementation 'com.typesafe.akka:akka-slf4j_2.13:2.7.0' // Update to 2.7.0
+
+    // Logging dependencies
+    implementation 'ch.qos.logback:logback-classic:1.4.11'
+    implementation 'org.slf4j:slf4j-api:2.0.7'
+    implementation 'org.slf4j:slf4j-simple:2.0.7'
+
+    // MySQL Connector for database connectivity
+    implementation 'mysql:mysql-connector-java:8.0.33'
+    implementation 'org.tpolecat:doobie-core_2.13:1.0.0-RC9'
+    implementation 'org.tpolecat:doobie-hikari_2.13:1.0.0-RC9'
+    implementation 'org.tpolecat:doobie-mysql_2.13:1.0.0-RC9'
+    implementation 'mysql:mysql-connector-java:8.0.33'
+
+    // config library for application configuration
+    implementation 'com.typesafe:config:1.4.2'
+
+    // Circe for JSON serialization/deserialization
+    implementation 'io.circe:circe-core_2.13:0.14.5'
+    implementation 'io.circe:circe-generic_2.13:0.14.5'
+    implementation 'io.circe:circe-parser_2.13:0.14.5'
+
+    // PDI JWT for handling JWT tokens
+    implementation 'com.github.jwt-scala:jwt-core_2.13:10.0.4'
+
+    // BCrypt for password hashing
+    implementation 'org.mindrot:jbcrypt:0.4'
+
+    // Akka HTTP Circe integration for JSON support in HTTP routes
+    implementation 'de.heikoseeberger:akka-http-circe_2.13:1.39.2'
+
+    // Akka HTTP testing dependencies
+    testImplementation 'com.typesafe.akka:akka-http-testkit_2.13:10.5.0'
+    testImplementation 'org.scalatest:scalatest_2.13:3.2.17'
+}
+
+// Apply a specific Java toolchain to ease working on different environments.
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
+application {
+    // Define the main class for the application.
+    mainClass = 'main.Main'
+}
