@@ -19,17 +19,17 @@ import main.SqlDB
 import providers.{ProviderDetails, ProviderService}
 
 case class VmDetails(
-    clientUserId: String,
-    vcpus: Int,
-    ram: Int,
-    storage: Int,
-    vmImageType: String,
-    vmName: String,
-    internalVmName: String,
-    provider: ProviderDetails,
-    status: String,
-    createdAt: LocalDateTime = LocalDateTime.now(),
-    providerId: String,
+  clientUserId: String,
+  vcpus: Int,
+  ram: Int,
+  storage: Int,
+  vmImageType: String,
+  vmName: String,
+  internalVmName: String,
+  provider: ProviderDetails,
+  status: String,
+  createdAt: LocalDateTime = LocalDateTime.now(),
+  providerId: String
 )
 
 object VmDetailsRepository {
@@ -114,7 +114,7 @@ object VmDetailsRepository {
       }
     }
   }
-  
+
   def getVmClients(providerUserId: String): IO[Either[Throwable, List[(String, String)]]] = {
     val query =
       sql"""

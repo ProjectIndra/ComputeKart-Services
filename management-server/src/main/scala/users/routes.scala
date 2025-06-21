@@ -2,7 +2,7 @@ package users
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import users.controllers.{RegisterController, LoginController, UserInfoController}
+import users.controllers._
 
 object UsersRoutes {
   val route: Route =
@@ -11,6 +11,11 @@ object UsersRoutes {
       LoginController.login,
       pathPrefix("ui" / "profile") {
         UserInfoController.routes
+      },
+      pathPrefix("ui" / "providers") {
+        concat(
+          UserProviderDetailsController.getUserProviderDetails
+        )
       }
     )
 }

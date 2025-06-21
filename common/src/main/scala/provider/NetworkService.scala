@@ -7,15 +7,19 @@ import scalaj.http._
 
 object NetworkService {
 
-  implicit val mapStringAnyDecoder: Decoder[Map[String,Any]] = (c: HCursor) => {
+  implicit val mapStringAnyDecoder: Decoder[Map[String, Any]] = (c: HCursor) => {
     c.value.asObject match {
       case Some(jsonObject) =>
-        Right(jsonObject.toMap.map {
-          case (key, json) if json.isString => key -> json.asString
-          case (key, json) if json.isNumber => key -> json.asNumber.map(_.toDouble)
-          case (key, json) if json.isBoolean => key -> json.asBoolean
-          case (key, json) => key -> Some(json.noSpaces)
-        }.collect { case (key, Some(value)) => key -> value })
+        Right(
+          jsonObject.toMap
+            .map {
+              case (key, json) if json.isString => key -> json.asString
+              case (key, json) if json.isNumber => key -> json.asNumber.map(_.toDouble)
+              case (key, json) if json.isBoolean => key -> json.asBoolean
+              case (key, json) => key -> Some(json.noSpaces)
+            }
+            .collect { case (key, Some(value)) => key -> value }
+        )
       case None => Left(io.circe.DecodingFailure("Expected JSON object", c.history))
     }
   }
@@ -72,10 +76,10 @@ object NetworkService {
         Right(io.circe.parser.decode[Map[String, Any]](res.body).getOrElse(Map.empty))
       case Success(res) =>
         Left(s"Failed to activate default network: ${res.body}")
-          case Failure(exception) =>
-            Left(s"Error while activating default network: ${exception.getMessage}")
-        }
-      }
+      case Failure(exception) =>
+        Left(s"Error while activating default network: ${exception.getMessage}")
+    }
+  }
 
   def setupDefaultNetwork(providerUrl: String, verificationToken: String): Either[String, Unit] = {
     getNetworkList(providerUrl, verificationToken) match {

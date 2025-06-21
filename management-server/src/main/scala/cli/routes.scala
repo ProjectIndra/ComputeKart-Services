@@ -7,13 +7,13 @@ import cli.controllers.{CliVerificationController, CliSessionController}
 object CliRoutes {
   val route: Route =
     concat(
-      pathPrefix("ui") { 
+      pathPrefix("ui") {
         concat(
           CliSessionController.routes,
-          CliVerificationController.uiRoutes 
+          CliVerificationController.uiRoutes
         )
       },
-      pathPrefix("cli" / "profile") { 
+      pathPrefix("cli" / "profile") {
         CliVerificationController.cliRoutes
       }
     )

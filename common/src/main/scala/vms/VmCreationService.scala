@@ -1,6 +1,5 @@
 package vms
 
-
 import java.util.UUID
 import java.time.LocalDateTime
 import cats.effect.IO
@@ -16,13 +15,13 @@ import providers.{ProviderService, NetworkService}
 object VmCreationService {
 
   def createVm(
-      clientUserId: String,
-      vcpus: Int = 2,
-      ram: Int = 2048,
-      storage: Int = 20,
-      vmImageType: String = "ubuntu",
-      providerId: String,
-      vmName: Option[String] = None
+    clientUserId: String,
+    vcpus: Int = 2,
+    ram: Int = 2048,
+    storage: Int = 20,
+    vmImageType: String = "ubuntu",
+    providerId: String,
+    vmName: Option[String] = None
   ): Either[String, String] = {
     val generatedVmName = vmName.getOrElse(s"vm-${UUID.randomUUID()}")
     val internalVmName = UUID.randomUUID().toString
@@ -55,64 +54,64 @@ object VmCreationService {
   }
 
   def createVmAfterInputVerification(
-      clientUserId: String,
-      vcpus: Int,
-      ram: Int,
-      storage: Int,
-      vmImageType: String,
-      providerId: String,
-      generatedVmName: String,
-      internalVmName: String
+    clientUserId: String,
+    vcpus: Int,
+    ram: Int,
+    storage: Int,
+    vmImageType: String,
+    providerId: String,
+    generatedVmName: String,
+    internalVmName: String
   ): Either[String, String] = {
-  val providerResponse = ProviderDetailsRepository.fetchProviderDetails(providerId).unsafeRunSync()
-  providerResponse match {
-    case None => return Left("Provider not found")
-    case Some(provider) if provider.providerStatus != "active" =>
-      return Left("Provider is not active")
-    case Some(provider) =>
-      createVmAfterProviderVerification(provider, clientUserId, vcpus, ram, storage, vmImageType, generatedVmName, internalVmName, providerId)
+    val providerResponse = ProviderDetailsRepository.fetchProviderDetails(providerId).unsafeRunSync()
+    providerResponse match {
+      case None => return Left("Provider not found")
+      case Some(provider) if provider.providerStatus != "active" =>
+        return Left("Provider is not active")
+      case Some(provider) =>
+        createVmAfterProviderVerification(provider, clientUserId, vcpus, ram, storage, vmImageType, generatedVmName, internalVmName, providerId)
+    }
   }
-}
 
-def createVmAfterProviderVerification(
-  provider:ProviderDetails,
-  clientUserId: String,
-  vcpus: Int,
-  ram: Int,
-  storage: Int,
-  vmImageType: String,
-  generatedVmName: String,
-  internalVmName: String,
-  providerId: String
-): Either[String, String] = {
-  val networkStatus = NetworkService.setupDefaultNetwork(provider.providerUrl, provider.verificationToken)
-        if (networkStatus.isLeft) {
-          return Left(networkStatus.swap.getOrElse("Unknown error"))
-        }
-  createVmAfterNetworkSetup(
-    provider,
-    clientUserId,
-    vcpus,
-    ram,
-    storage,
-    vmImageType,
-    generatedVmName,
-    internalVmName,
-    providerId
-  )
-}
+  def createVmAfterProviderVerification(
+    provider: ProviderDetails,
+    clientUserId: String,
+    vcpus: Int,
+    ram: Int,
+    storage: Int,
+    vmImageType: String,
+    generatedVmName: String,
+    internalVmName: String,
+    providerId: String
+  ): Either[String, String] = {
+    val networkStatus = NetworkService.setupDefaultNetwork(provider.providerUrl, provider.verificationToken)
+    if (networkStatus.isLeft) {
+      return Left(networkStatus.swap.getOrElse("Unknown error"))
+    }
+    createVmAfterNetworkSetup(
+      provider,
+      clientUserId,
+      vcpus,
+      ram,
+      storage,
+      vmImageType,
+      generatedVmName,
+      internalVmName,
+      providerId
+    )
+  }
 
-def createVmAfterNetworkSetup(
-  provider: ProviderDetails,
-  clientUserId: String,
-  vcpus: Int,
-  ram: Int,
-  storage: Int,
-  vmImageType: String,
-  generatedVmName: String,
-  internalVmName: String,
-  providerId: String
-): Either[String, String] = {
+  def createVmAfterNetworkSetup(
+    provider: ProviderDetails,
+    clientUserId: String,
+    vcpus: Int,
+    ram: Int,
+    storage: Int,
+    vmImageType: String,
+    generatedVmName: String,
+    internalVmName: String,
+    providerId: String
+  ): Either[String, String] = {
     val vmCreationResponse = createVmOnProvider(
       provider.providerUrl,
       Map(
@@ -145,19 +144,18 @@ def createVmAfterNetworkSetup(
         VmDetailsRepository.insertVmDetails(vmDetails)
 
         VmStatusRepository.insertVmStatus(
-            VmStatus(
+          VmStatus(
             vmId = internalVmName,
             vmName = generatedVmName,
             status = "active",
             providerId = providerId,
             clientUserId = clientUserId,
             vmDeleted = false,
-            vmDeletedAt = None,
-            )
+            vmDeletedAt = None
+          )
         )
 
         Right(generatedVmName)
     }
+  }
 }
-}
-

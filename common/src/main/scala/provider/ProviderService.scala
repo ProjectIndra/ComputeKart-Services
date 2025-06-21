@@ -15,14 +15,13 @@ object ProviderService {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 
-  // Custom encoder for Map[String, Any]
   implicit val mapAnyEncoder: Encoder[Map[String, Any]] = Encoder.instance { map =>
     Json.obj(
       map.map {
-        case (key, value: String)  => key -> Json.fromString(value)
-        case (key, value: Int)     => key -> Json.fromInt(value)
-        case (key, value: Long)    => key -> Json.fromLong(value)
-        case (key, value: Double)  => key -> Json.fromDoubleOrNull(value)
+        case (key, value: String) => key -> Json.fromString(value)
+        case (key, value: Int) => key -> Json.fromInt(value)
+        case (key, value: Long) => key -> Json.fromLong(value)
+        case (key, value: Double) => key -> Json.fromDoubleOrNull(value)
         case (key, value: Boolean) => key -> Json.fromBoolean(value)
         case (key, value: Map[_, _]) =>
           key -> mapAnyEncoder.apply(value.asInstanceOf[Map[String, Any]])
@@ -32,9 +31,9 @@ object ProviderService {
   }
 
   def createVmOnProvider(
-      providerUrl: String,
-      vmData: Map[String, Any],
-      verificationToken: String
+    providerUrl: String,
+    vmData: Map[String, Any],
+    verificationToken: String
   ): Either[String, Map[String, Any]] = {
     val headers = Map("authorization" -> verificationToken)
 
@@ -90,5 +89,42 @@ object ProviderService {
       case Failure(exception) => Left(s"Error while deleting VM: ${exception.getMessage}")
     }
   }
-}
 
+  def sendUpdateRequestToProvider(
+    providerUrl: String,
+    verificationToken: String,
+    maxRam: Int,
+    maxCpu: Int,
+    maxDisk: Int,
+    maxVms: Int,
+    maxNetworks: Int
+  ): IO[Either[String, String]] = IO {
+    val headers = Map("authorization" -> verificationToken)
+
+    val response = Try(
+      Http(s"$providerUrl/config/update")
+        .postData(
+          s"""
+        {
+          "max_ram": $maxRam,
+          "max_cpu": $maxCpu,
+          "max_disk": $maxDisk,
+          "max_vms": $maxVms,
+          "max_networks": $maxNetworks
+        }
+        """
+        )
+        .headers(headers)
+        .asString
+    )
+
+    response match {
+      case Success(res) if res.is2xx =>
+        Right("Provider configuration updated successfully")
+      case Success(res) =>
+        Left(s"Failed to update provider configuration: ${res.body}")
+      case Failure(exception) =>
+        Left(s"Error while updating provider configuration: ${exception.getMessage}")
+    }
+  }
+}

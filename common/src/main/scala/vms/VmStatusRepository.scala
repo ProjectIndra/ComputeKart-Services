@@ -10,13 +10,13 @@ import doobie.util.Read.derived
 import main.SqlDB
 
 case class VmStatus(
-    vmId: String,
-    vmName: String,
-    status: String,
-    providerId: String,
-    clientUserId: String,
-    vmDeleted: Boolean = false,
-    vmDeletedAt: Option[LocalDateTime] = None
+  vmId: String,
+  vmName: String,
+  status: String,
+  providerId: String,
+  clientUserId: String,
+  vmDeleted: Boolean = false,
+  vmDeletedAt: Option[LocalDateTime] = None
 )
 object VmStatusRepository {
 
@@ -30,9 +30,8 @@ object VmStatusRepository {
     implicit val optionLocalDateTimeGet: Get[Option[LocalDateTime]] =
       Get[java.sql.Timestamp].map(Option(_)).map(_.map(_.toLocalDateTime))
 
-    Read[(String, String, String, String, String, Boolean, Option[LocalDateTime])].map {
-      case (vmId, vmName, status, providerId, clientUserId, vmDeleted, vmDeletedAt) =>
-        VmStatus(vmId, vmName, status, providerId, clientUserId, vmDeleted, vmDeletedAt)
+    Read[(String, String, String, String, String, Boolean, Option[LocalDateTime])].map { case (vmId, vmName, status, providerId, clientUserId, vmDeleted, vmDeletedAt) =>
+      VmStatus(vmId, vmName, status, providerId, clientUserId, vmDeleted, vmDeletedAt)
     }
   }
 
@@ -130,4 +129,3 @@ object VmStatusRepository {
     }
   }
 }
-

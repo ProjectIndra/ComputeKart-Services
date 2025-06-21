@@ -1,6 +1,5 @@
 package vms
 
-
 import java.time.LocalDateTime
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -19,10 +18,13 @@ object VmCrudService {
       internalVmName <- IO.fromEither(internalVmNameResult) // Unwraps the Either
       provider <- IO.fromEither(providerResult.leftMap(new RuntimeException(_))) // Unwraps the Either to get the provider object
       _ <- IO.fromEither(
-        NetworkService.ensureDefaultNetworkActive(
-          provider.providerUrl,
-          provider.verificationToken
-        ).left.map(new RuntimeException(_))
+        NetworkService
+          .ensureDefaultNetworkActive(
+            provider.providerUrl,
+            provider.verificationToken
+          )
+          .left
+          .map(new RuntimeException(_))
       )
       response <- ProviderService.activateVm(provider.providerUrl, internalVmName, provider.verificationToken) // Returns IO[Either[String, String]]
     } yield response
@@ -52,4 +54,3 @@ object VmCrudService {
     } yield response
   }
 }
-

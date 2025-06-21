@@ -5,10 +5,10 @@ import doobie.implicits._
 import main.SqlDB
 
 case class UserDetails(
-    userId: String,
-    email: String,
-    firstName: String,
-    lastName: String
+  userId: String,
+  email: String,
+  firstName: String,
+  lastName: String
 )
 
 object UserDetailsRepository {
