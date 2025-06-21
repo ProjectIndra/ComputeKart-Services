@@ -1,7 +1,6 @@
 package main
 
 import cats.effect.{ExitCode, IO, IOApp}
-import main.SqlDB
 
 object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {

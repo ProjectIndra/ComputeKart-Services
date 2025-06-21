@@ -1,4 +1,4 @@
-package provider
+package providers
 
 import scala.util.{Try, Success, Failure}
 import io.circe.{Decoder, HCursor, Json}

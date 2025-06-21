@@ -1,6 +1,6 @@
 package vms
 
-import provider.{ProviderService, NetworkService}
+
 import java.util.UUID
 import java.time.LocalDateTime
 import cats.effect.IO
@@ -8,9 +8,10 @@ import cats.effect.unsafe.implicits.global
 
 import vms.VmDetails
 import vms.VmStatus
-import provider.ProviderService.createVmOnProvider
-import provider.ProviderDetails
-import provider.ProviderDetailsRepository
+import providers.ProviderService.createVmOnProvider
+import providers.ProviderDetails
+import providers.ProviderDetailsRepository
+import providers.{ProviderService, NetworkService}
 
 object VmCreationService {
 

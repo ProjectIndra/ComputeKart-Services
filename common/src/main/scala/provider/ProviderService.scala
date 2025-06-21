@@ -1,4 +1,4 @@
-package provider
+package providers
 
 import cats.effect.IO
 import io.circe.generic.auto._

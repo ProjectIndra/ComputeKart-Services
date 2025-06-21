@@ -1,13 +1,14 @@
 package vms
 
-import provider.ProviderService
+
 import java.time.LocalDateTime
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.either._
 
 import vms._
-import provider._
+import providers._
+import providers.ProviderService
 
 object VmCrudService {
 

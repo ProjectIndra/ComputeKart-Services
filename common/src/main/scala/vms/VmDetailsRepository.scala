@@ -1,7 +1,6 @@
 package vms
 
 import java.time.LocalDateTime
-import provider.{ProviderDetails, ProviderService}
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import doobie.implicits._
@@ -17,6 +16,7 @@ import scalaj.http.HttpResponse
 import scalaj.http._
 
 import main.SqlDB
+import providers.{ProviderDetails, ProviderService}
 
 case class VmDetails(
     clientUserId: String,

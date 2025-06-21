@@ -1,4 +1,4 @@
-package provider
+package providers
 
 import cats.effect.IO
 import doobie.implicits._
@@ -26,6 +26,149 @@ case class ProviderConf(
 )
 
 object ProviderDetailsRepository {
+
+  def updateProviderConf(
+      providerId: String,
+      providerAllowedRam: Int,
+      providerAllowedVcpu: Int,
+      providerAllowedStorage: Int,
+      providerAllowedVms: Int,
+      providerAllowedNetworks: Int
+  ): IO[Either[String, Unit]] = {
+    val query =
+      sql"""
+        UPDATE provider_conf
+        SET 
+          provider_allowed_ram = $providerAllowedRam,
+          provider_allowed_vcpu = $providerAllowedVcpu,
+          provider_allowed_storage = $providerAllowedStorage,
+          provider_allowed_vms = $providerAllowedVms,
+          provider_allowed_networks = $providerAllowedNetworks
+        WHERE provider_id = $providerId
+      """.update.run
+  
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(_) => Right(())
+        case Left(e) =>
+          println(s"Error updating provider configuration: ${e.getMessage}")
+          Left(s"Error updating provider configuration: ${e.getMessage}")
+      }
+    }
+  }
+
+  def updateProviderDetails(
+      providerId: String,
+      providerRamCapacity: Int,
+      providerVcpuCapacity: Int,
+      providerStorageCapacity: Int,
+      providerUrl: String,
+      providerStatus: String,
+      managementServerVerificationToken: String
+  ): IO[Either[String, Unit]] = {
+    val query =
+      sql"""
+        UPDATE provider_details
+        SET 
+          provider_ram_capacity = $providerRamCapacity,
+          provider_vcpu_capacity = $providerVcpuCapacity,
+          provider_storage_capacity = $providerStorageCapacity,
+          provider_url = $providerUrl,
+          provider_status = $providerStatus,
+          management_server_verification_token = $managementServerVerificationToken
+        WHERE provider_id = $providerId
+      """.update.run
+  
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(_) => Right(())
+        case Left(e) =>
+          println(s"Error updating provider details: ${e.getMessage}")
+          Left(s"Error updating provider details: ${e.getMessage}")
+      }
+    }
+  }
+
+  def insertProviderDetails(
+      providerId: String,
+      providerName: String,
+      providerStatus: String,
+      providerRamCapacity: Int,
+      providerVcpuCapacity: Int,
+      providerStorageCapacity: Int,
+      providerUrl: String,
+      managementServerVerificationToken: String
+  ): IO[Either[String, Unit]] = {
+    val query =
+      sql"""
+        INSERT INTO provider_details (
+          provider_id,
+          provider_name,
+          provider_status,
+          provider_ram_capacity,
+          provider_vcpu_capacity,
+          provider_storage_capacity,
+          provider_url,
+          management_server_verification_token
+        )
+        VALUES (
+          $providerId,
+          $providerName,
+          $providerStatus,
+          $providerRamCapacity,
+          $providerVcpuCapacity,
+          $providerStorageCapacity,
+          $providerUrl,
+          $managementServerVerificationToken
+        )
+      """.update.run
+  
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(_) => Right(())
+        case Left(e) =>
+          println(s"Error inserting provider details: ${e.getMessage}")
+          Left(s"Error inserting provider details: ${e.getMessage}")
+      }
+    }
+  }
+  def insertProviderConf(
+      providerId: String,
+      providerAllowedRam: Int,
+      providerAllowedVcpu: Int,
+      providerAllowedStorage: Int,
+      providerAllowedVms: Int,
+      providerAllowedNetworks: Int
+  ): IO[Either[String, Unit]] = {
+    val query =
+      sql"""
+        INSERT INTO provider_conf (
+          provider_id,
+          provider_allowed_ram,
+          provider_allowed_vcpu,
+          provider_allowed_storage,
+          provider_allowed_vms,
+          provider_allowed_networks
+        )
+        VALUES (
+          $providerId,
+          $providerAllowedRam,
+          $providerAllowedVcpu,
+          $providerAllowedStorage,
+          $providerAllowedVms,
+          $providerAllowedNetworks
+        )
+      """.update.run
+  
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(_) => Right(())
+        case Left(e) =>
+          println(s"Error inserting provider configuration: ${e.getMessage}")
+          Left(s"Error inserting provider configuration: ${e.getMessage}")
+      }
+    }
+  }
 
   def fetchProviderDetails(providerId: String): IO[Option[ProviderDetails]] = {
     val query =

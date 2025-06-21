@@ -1,5 +1,7 @@
 package utils
 
+import cats.effect.IO
+
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import java.util.Base64
@@ -55,11 +57,16 @@ object CryptoUtils {
     Jwt.encode(claim, config.getString("crypto.secretKey"), JwtAlgorithm.HS256)
   }
 
-  // Decode a JWT token
-  def decodeJwt(token: String): Either[String, JwtClaim] = {
-    Jwt.decode(token, config.getString("crypto.secretKey"), Seq(JwtAlgorithm.HS256)) match {
-      case Success(claim) => Right(claim)
-      case Failure(exception) => Left(exception.getMessage)
+  def decodeJwt(token: String): IO[Map[String, String]] = {
+    IO {
+      Jwt.decode(token, config.getString("crypto.secretKey"), Seq(JwtAlgorithm.HS256)) match {
+        case Success(claim) =>
+          io.circe.parser.parse(claim.content).flatMap(_.as[Map[String, String]]) match {
+            case Right(data) => data
+            case Left(_) => throw new Exception("Failed to parse JWT content")
+          }
+        case Failure(_) => throw new Exception("Invalid JWT token")
+      }
     }
   }
 }
