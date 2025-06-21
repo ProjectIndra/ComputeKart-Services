@@ -19,6 +19,9 @@ object ProvidersRoutes {
           ProviderClientDetailsController.providerClientDetails,
           ProviderConfigController.updateConfig
         )
+      },
+      pathPrefix("providers") {
+        QueryVmCreationController.queryVmCreation
       }
     )
 }

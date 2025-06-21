@@ -7,6 +7,8 @@ import akka.http.scaladsl.server.Directives._
 
 import users.UsersRoutes
 import cli.CliRoutes
+import providers.ProvidersRoutes
+import vms.VmsRoutes
 
 object Server {
   implicit val system: ActorSystem = ActorSystem("managementServer")
@@ -20,7 +22,9 @@ object Server {
       }
     } ~
       UsersRoutes.route ~
-      CliRoutes.route
+      CliRoutes.route ~
+      ProvidersRoutes.route ~
+      VmsRoutes.route
 
   def run(): Unit = {
     val bindingFuture = Http().newServerAt("localhost", 5000).bindFlow(routes)

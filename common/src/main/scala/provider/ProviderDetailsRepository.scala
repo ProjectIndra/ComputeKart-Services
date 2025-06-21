@@ -44,6 +44,35 @@ case class ProviderConf(
 
 object ProviderDetailsRepository {
 
+  def canCreateVm(
+    providerId: String,
+    vcpus: Option[Int],
+    ram: Option[Int],
+    storage: Option[Int]
+  ): IO[Either[String, Boolean]] = {
+    for {
+      providerDetails <- fetchProviderDetails(providerId)
+      provider <- IO.fromOption(providerDetails)(new RuntimeException("Provider not found"))
+      _ <- IO.raiseWhen(provider.providerStatus != "active")(
+        new RuntimeException("Provider is not active")
+      )
+
+      // Call the provider's endpoint to check VM creation eligibility
+      canCreate <- ProviderService.queryVmCreation(
+        provider.providerUrl,
+        provider.verificationToken,
+        vcpus,
+        ram,
+        storage
+      )
+    } yield canCreate
+  }.attempt.map {
+    case Right(result) => result
+    case Left(e) =>
+      println(s"Error checking VM creation eligibility: ${e.getMessage}")
+      Left(e.getMessage)
+  }
+
   def getProvidersByUserId(userId: String): IO[List[ProviderDetails]] = {
     val query =
       sql"""

@@ -30,6 +30,37 @@ object ProviderService {
     )
   }
 
+  def queryVmCreation(
+    providerUrl: String,
+    verificationToken: String,
+    vcpus: Option[Int],
+    ram: Option[Int],
+    storage: Option[Int]
+  ): IO[Either[String, Boolean]] = IO {
+    val headers = Map("authorization" -> verificationToken)
+    val queryData = Map(
+      "vcpu" -> vcpus,
+      "memory" -> ram,
+      "storage" -> storage
+    ).collect { case (key, Some(value)) => key -> value.toString }
+
+    val response = Try(
+      Http(s"$providerUrl/vm/queryvm")
+        .postData(queryData.asJson.noSpaces)
+        .headers(headers)
+        .asString
+    )
+
+    response match {
+      case Success(res) if res.is2xx =>
+        Right(true)
+      case Success(res) =>
+        Left(res.body)
+      case Failure(exception) =>
+        Left(s"Error querying VM creation: ${exception.getMessage}")
+    }
+  }
+
   def createVmOnProvider(
     providerUrl: String,
     vmData: Map[String, Any],
