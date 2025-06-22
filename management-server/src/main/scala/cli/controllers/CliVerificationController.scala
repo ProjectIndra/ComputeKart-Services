@@ -7,10 +7,8 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import utils.ErrorResponse
-import doobie.implicits._
+import cli.CliDetailsRepository
 import java.util.UUID
-
-import main.SqlDB
 
 case class CliVerificationResponse(cli_verification_token: String)
 case class CliSessionRequest(cli_verification_token: String, wireguard_endpoint: String, wireguard_public_key: String)
@@ -24,15 +22,7 @@ object CliVerificationController {
         get {
           parameter("user_id") { userId =>
             val cliVerificationToken = UUID.randomUUID().toString
-
-            val updateQuery =
-              sql"""
-                UPDATE users
-                SET cli_verification_token = $cliVerificationToken
-                WHERE user_id = $userId
-              """.update.run
-
-            val result = SqlDB.transactor.use(xa => updateQuery.transact(xa)).unsafeToFuture()
+            val result = CliDetailsRepository.updateCliVerificationToken(userId, cliVerificationToken).unsafeToFuture()
 
             onComplete(result) {
               case scala.util.Success(updatedRows) if updatedRows > 0 =>
@@ -52,14 +42,7 @@ object CliVerificationController {
       path("verifyCliToken") {
         post {
           entity(as[CliSessionRequest]) { request =>
-            val query =
-              sql"""
-                SELECT user_id
-                FROM users
-                WHERE cli_verification_token = ${request.cli_verification_token}
-              """.query[String].option
-
-            val result = SqlDB.transactor.use(xa => query.transact(xa)).unsafeToFuture()
+            val result = CliDetailsRepository.verifyCliToken(request.cli_verification_token).unsafeToFuture()
 
             onComplete(result) {
               case scala.util.Success(Some(userId)) =>
@@ -67,13 +50,15 @@ object CliVerificationController {
                 val sessionToken = UUID.randomUUID().toString
                 val sessionExpiryTime = java.time.Instant.now().plusSeconds(365 * 24 * 60 * 60).toString // 1 year
 
-                val insertQuery =
-                  sql"""
-                    INSERT INTO cli_sessions (user_id, cli_id, cli_wireguard_endpoint, cli_wireguard_public_key, cli_status, cli_session_token, cli_session_token_expiry_timestamp, cli_verification_token)
-                    VALUES ($userId, $cliId, ${request.wireguard_endpoint}, ${request.wireguard_public_key}, true, $sessionToken, $sessionExpiryTime, ${request.cli_verification_token})
-                  """.update.run
-
-                val insertResult = SqlDB.transactor.use(xa => insertQuery.transact(xa)).unsafeToFuture()
+                val insertResult = CliDetailsRepository.insertCliSession(
+                  userId,
+                  cliId,
+                  request.wireguard_endpoint,
+                  request.wireguard_public_key,
+                  sessionToken,
+                  sessionExpiryTime,
+                  request.cli_verification_token
+                ).unsafeToFuture()
 
                 onComplete(insertResult) {
                   case scala.util.Success(_) =>
