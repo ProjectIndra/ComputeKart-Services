@@ -13,6 +13,8 @@ import java.util.UUID
 
 import utils.CryptoUtils._
 
+import middleware.BaseController
+
 case class ProviderRequest(
   providerVerificationToken: String,
   providerAllowedVms: Int,
@@ -40,7 +42,7 @@ case class ProviderWholeDB(
   providerAllowedNetworks: Int
 )
 
-object VerifyProviderTokenController {
+object VerifyProviderTokenController extends BaseController {
 
   def verifyProviderToken: Route = path("verifyProviderToken") {
     post {

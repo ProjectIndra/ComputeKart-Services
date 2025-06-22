@@ -9,7 +9,9 @@ import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import providers.ProviderDetailsRepository
 
-object ProviderDetilsController {
+import middleware.BaseController
+
+object ProviderDetilsController extends BaseController {
 
   def providersLists: Route = path("lists") {
     post {

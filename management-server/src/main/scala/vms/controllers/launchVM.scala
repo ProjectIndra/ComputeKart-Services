@@ -8,11 +8,13 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
+import middleware.BaseController
+
 import providers.ProviderDetailsRepository
 import providers.ProviderService
 import vms.VmCreationService
 
-object LaunchVmController {
+object LaunchVmController extends BaseController {
 
   def launchVm: Route = path("launch") {
     post {

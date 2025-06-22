@@ -10,10 +10,12 @@ import io.circe.{Encoder, Json}
 import io.circe.generic.auto._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
+import middleware.BaseController
+
 import vms.VmDetailsRepository
 import vms.VmCrudService
 
-object VMDetailsController {
+object VMDetailsController extends BaseController {
 
   implicit val eitherEncoder: Encoder[Either[Throwable, List[(String, String, String, String, String, String, String, String, String, java.time.LocalDateTime)]]] =
     Encoder.instance {

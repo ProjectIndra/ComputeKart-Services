@@ -8,12 +8,14 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
+import middleware.BaseController
+
 import wg.WgDetailsRepository
 import wg.WgServices
 import vms.VmDetailsRepository
 import providers.ProviderDetailsRepository
 
-object WgController {
+object WgController extends BaseController {
 
   def connectWireguard: Route = path("connect") {
     post {

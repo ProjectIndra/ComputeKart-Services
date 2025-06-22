@@ -8,10 +8,13 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.{Encoder, Json}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+
+import middleware.BaseController
+
 import vms.VmDetailsRepository
 import vms.VmCrudService
 
-object CliDetailsController {
+object CliDetailsController extends BaseController {
 
   implicit val eitherEncoder: Encoder[Either[Throwable, String]] =
     Encoder.instance {

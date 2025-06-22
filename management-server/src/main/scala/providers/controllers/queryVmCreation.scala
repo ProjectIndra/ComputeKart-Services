@@ -9,7 +9,9 @@ import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import providers.ProviderDetailsRepository
 
-object QueryVmCreationController {
+import middleware.BaseController
+
+object QueryVmCreationController extends BaseController {
 
   def queryVmCreation: Route = path("query") {
     post {

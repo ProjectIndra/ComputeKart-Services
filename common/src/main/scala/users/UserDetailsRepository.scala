@@ -30,4 +30,21 @@ object UserDetailsRepository {
       }
     }
   }
+
+  def updateUserDetails(
+    userId: String,
+    profileName: Option[String],
+    profileImage: Option[String]
+  ): IO[Int] = {
+    val query =
+      sql"""
+        UPDATE users
+        SET profile_name = $profileName, profile_image = $profileImage
+        WHERE user_id = $userId
+      """.update.run
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa)
+    }
+  }
 }

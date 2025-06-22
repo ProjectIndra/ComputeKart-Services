@@ -11,6 +11,8 @@ import providers.ProviderDetailsRepository
 import java.time.LocalDateTime
 import providers.ProviderService
 
+import middleware.BaseController
+
 case class UpdateConfigRequest(
   providerId: String,
   providerAllowedRam: Int,
@@ -20,8 +22,8 @@ case class UpdateConfigRequest(
   providerAllowedNetworks: Int
 )
 
-object ProviderConfigController {
-
+object ProviderConfigController extends BaseController {
+  
   def getConfig: Route = path("getConfig") {
     post {
       entity(as[Map[String, String]]) { request =>

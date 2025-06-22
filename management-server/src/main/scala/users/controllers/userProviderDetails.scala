@@ -10,7 +10,9 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import providers.ProviderDetailsRepository
 import io.circe.{Encoder, Json}
 
-object UserProviderDetailsController {
+import middleware.BaseController
+
+object UserProviderDetailsController extends BaseController {
 
   implicit val customEncoder: Encoder[Map[String, Either[Throwable, List[Map[String, Json]]]]] = Encoder.instance { map =>
     Json.obj(

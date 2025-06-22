@@ -9,13 +9,15 @@ import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.{Encoder, Json}
 
+import middleware.BaseController
+
 import providers.ProviderDetailsRepository
 import vms.VmDetailsRepository
 import users.UserDetailsRepository
 
 case class ClientDetails(user_id: String, name: String, email: String)
 
-object ProviderClientDetailsController {
+object ProviderClientDetailsController extends BaseController {
 
   // Custom encoder for Either[Throwable, List[ClientDetails]]
   implicit val encodeEither: Encoder[Either[Throwable, List[ClientDetails]]] = Encoder.instance {

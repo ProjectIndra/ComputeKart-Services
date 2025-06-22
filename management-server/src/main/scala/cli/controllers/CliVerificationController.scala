@@ -6,15 +6,18 @@ import cats.effect.unsafe.implicits.global
 import io.circe.generic.auto._
 import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+import java.util.UUID
+
+import middleware.BaseController
+
 import utils.ErrorResponse
 import cli.CliDetailsRepository
-import java.util.UUID
 
 case class CliVerificationResponse(cli_verification_token: String)
 case class CliSessionRequest(cli_verification_token: String, wireguard_endpoint: String, wireguard_public_key: String)
 case class CliSessionResponse(message: String, session_token: String)
 
-object CliVerificationController {
+object CliVerificationController extends BaseController {
 
   val uiRoutes: Route =
     concat(

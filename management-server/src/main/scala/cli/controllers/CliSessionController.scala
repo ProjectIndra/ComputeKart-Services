@@ -6,12 +6,15 @@ import cats.effect.unsafe.implicits.global
 import io.circe.generic.auto._
 import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+
+import middleware.BaseController
+
 import utils.ErrorResponse
 import cli.CliDetailsRepository
 
 case class DeleteCliSessionResponse(message: String)
 
-object CliSessionController {
+object CliSessionController extends BaseController {
 
   // Routes for UI-related paths
   val routes: Route =
