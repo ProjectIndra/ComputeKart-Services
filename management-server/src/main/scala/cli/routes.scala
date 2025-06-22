@@ -2,7 +2,7 @@ package cli
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import cli.controllers.{CliVerificationController, CliSessionController}
+import cli.controllers._
 
 object CliRoutes {
   val route: Route =
@@ -15,6 +15,14 @@ object CliRoutes {
       },
       pathPrefix("cli" / "profile") {
         CliVerificationController.cliRoutes
+      },
+      pathPrefix("vms") {
+        concat(
+          CliDetailsController.startVmCli,
+          CliDetailsController.stopVmCli,
+          CliDetailsController.removeVmCli,
+          CliDetailsController.forceRemoveVmCli
+        )
       }
     )
 }

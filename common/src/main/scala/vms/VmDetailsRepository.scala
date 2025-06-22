@@ -2,13 +2,17 @@ package vms
 
 import java.time.LocalDateTime
 import cats.effect.IO
+import java.sql.Timestamp
 import cats.effect.unsafe.implicits.global
 import doobie.implicits._
+import doobie.util.meta.Meta
+import doobie.generic.auto._
 import doobie.util.transactor.Transactor
 import io.circe.generic.auto._
 import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import doobie.implicits._
+import doobie.util.Read
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Try, Success, Failure}
@@ -33,6 +37,30 @@ case class VmDetails(
 )
 
 object VmDetailsRepository {
+
+  implicit val localDateTimeMeta: Meta[LocalDateTime] =
+    Meta[Timestamp].imap(_.toLocalDateTime)(Timestamp.valueOf)
+
+  def getVmDetailsByName(vmName: String, userId: String): IO[Either[Throwable, (String, String)]] = {
+    val query =
+      sql"""
+      SELECT vm_id, provider_id
+      FROM vm_details
+      WHERE vm_name = $vmName AND client_user_id = $userId AND vm_deleted = false
+    """.query[(String, String)].option
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(Some(vmDetails)) => Right(vmDetails)
+        case Right(None) =>
+          Left(new RuntimeException(s"VM with name '$vmName' not found for user '$userId'"))
+        case Left(e) =>
+          println(s"Error fetching VM details by name: ${e.getMessage}")
+          Left(e)
+      }
+    }
+  }
+
   def isVmNameExists(clientUserId: String, vmName: String): IO[Either[Throwable, Boolean]] = {
     val query =
       sql"""
@@ -132,4 +160,47 @@ object VmDetailsRepository {
       }
     }
   }
+
+  def getAllVms(userId: String): IO[Either[Throwable, List[(String, String, String, String, String, String, String, String, String, LocalDateTime)]]] = {
+    val query =
+      sql"""
+      SELECT client_user_id, vcpu, ram, storage, vm_image_type, vm_name, internal_vm_name,
+             provider_id, status, vm_created_at
+      FROM vm_details
+      WHERE client_user_id = $userId
+    """.query[
+        (String, String, String, String, String, String, String, String, String, LocalDateTime)
+      ].to[List]
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(rows) => Right(rows)
+        case Left(e) =>
+          println(s"Error fetching VMs: ${e.getMessage}")
+          Left(e)
+      }
+    }
+  }
+
+  def getAllActiveVms(userId: String): IO[Either[Throwable, List[(String, String, String, String, String, String, String, String, String, LocalDateTime)]]] = {
+    val query =
+      sql"""
+      SELECT client_user_id, vcpu, ram, storage, vm_image_type, vm_name, internal_vm_name,
+             provider_id, status, vm_created_at
+      FROM vm_details
+      WHERE client_user_id = $userId AND status = 'active'
+    """.query[
+        (String, String, String, String, String, String, String, String, String, LocalDateTime)
+      ].to[List]
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(rows) => Right(rows)
+        case Left(e) =>
+          println(s"Error fetching active VMs: ${e.getMessage}")
+          Left(e)
+      }
+    }
+  }
+
 }

@@ -53,4 +53,12 @@ object VmCrudService {
       _ <- IO.fromEither(markDeletedResult) // Marks the VM as deleted
     } yield response
   }
+
+  def forceRemoveVm(providerId: String, vmId: String, userId: String): IO[Either[String, String]] = {
+    for {
+      deactivateResult <- deactivateVm(providerId, vmId, userId) // Deactivates the VM
+      _ <- IO.fromEither(deactivateResult.leftMap(new RuntimeException(_))) // Ensures deactivation was successful
+      deleteResult <- deleteVm(providerId, vmId, userId) // Deletes the VM
+    } yield deleteResult
+  }
 }
