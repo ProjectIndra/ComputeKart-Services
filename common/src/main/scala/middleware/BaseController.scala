@@ -6,5 +6,5 @@ import middleware.AuthMiddleware
 import middleware.User
 
 trait BaseController {
-  def uiLoginRequired(route: User => Route): Route = AuthMiddleware.uiLoginRequired(route)
+  def uiLoginRequired(route: Map[String, String] => Route): Route = AuthMiddleware.uiLoginRequired(route)
 }

@@ -9,6 +9,7 @@ import users.UsersRoutes
 import cli.CliRoutes
 import providers.ProvidersRoutes
 import vms.VmsRoutes
+import wg.WgRoutes
 
 object Server {
   implicit val system: ActorSystem = ActorSystem("managementServer")
@@ -24,7 +25,8 @@ object Server {
       UsersRoutes.route ~
       CliRoutes.route ~
       ProvidersRoutes.route ~
-      VmsRoutes.route
+      VmsRoutes.route ~
+      WgRoutes.route
 
   def run(): Unit = {
     val bindingFuture = Http().newServerAt("localhost", 5000).bindFlow(routes)
