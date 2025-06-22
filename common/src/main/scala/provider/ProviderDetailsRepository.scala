@@ -44,6 +44,24 @@ case class ProviderConf(
 
 object ProviderDetailsRepository {
 
+  def getProvidersList(userId: String): IO[List[ProviderDetails]] = {
+    val query =
+      sql"""
+      SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
+      FROM provider_details
+      WHERE user_id = $userId
+    """.query[ProviderDetails].to[List]
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(providers) => providers
+        case Left(e) =>
+          println(s"Error fetching providers list: ${e.getMessage}")
+          List.empty[ProviderDetails]
+      }
+    }
+  }
+
   def canCreateVm(
     providerId: String,
     vcpus: Option[Int],

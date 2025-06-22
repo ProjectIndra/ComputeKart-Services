@@ -90,7 +90,7 @@ object CliDetailsController {
         } else {
           val result = VmDetailsRepository.getVmDetailsByName(vmName.get, userId.get)
             .flatMap(vmDetails => IO.fromEither(vmDetails))
-            .flatMap { case (vmId, providerId) =>
+            .flatMap { case (vmId, providerId, _) =>
               VmCrudService.deleteVm(providerId, vmId, userId.get)
             }
 
@@ -118,7 +118,7 @@ object CliDetailsController {
         } else {
           val result = VmDetailsRepository.getVmDetailsByName(vmName.get, userId.get)
             .flatMap(vmDetails => IO.fromEither(vmDetails))
-            .flatMap { case (vmId, providerId) =>
+            .flatMap { case (vmId, providerId, _) =>
               VmCrudService.forceRemoveVm(vmId, providerId, userId.get)
             }
 

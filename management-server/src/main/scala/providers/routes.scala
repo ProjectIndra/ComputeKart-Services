@@ -21,7 +21,11 @@ object ProvidersRoutes {
         )
       },
       pathPrefix("providers") {
-        QueryVmCreationController.queryVmCreation
+        concat(
+          QueryVmCreationController.queryVmCreation,
+          ProviderDetilsController.providersLists,
+          ProviderDetilsController.providersDetails
+        )
       }
     )
 }

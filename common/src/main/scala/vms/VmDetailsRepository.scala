@@ -41,13 +41,13 @@ object VmDetailsRepository {
   implicit val localDateTimeMeta: Meta[LocalDateTime] =
     Meta[Timestamp].imap(_.toLocalDateTime)(Timestamp.valueOf)
 
-  def getVmDetailsByName(vmName: String, userId: String): IO[Either[Throwable, (String, String)]] = {
+  def getVmDetailsByName(vmName: String, userId: String): IO[Either[Throwable, (String, String, String)]] = {
     val query =
       sql"""
-      SELECT vm_id, provider_id
+      SELECT vm_id, provider_id, internal_vm_name
       FROM vm_details
       WHERE vm_name = $vmName AND client_user_id = $userId AND vm_deleted = false
-    """.query[(String, String)].option
+    """.query[(String, String, String)].option
 
     SqlDB.transactor.use { xa =>
       query.transact(xa).attempt.map {
