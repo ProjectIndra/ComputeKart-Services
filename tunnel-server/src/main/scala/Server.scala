@@ -12,6 +12,10 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
+import cats.effect.unsafe.implicits.global
+
+import providers.ProviderDetailsRepository
+
 object TunnelServer {
 
   val tunnelRegistry = TrieMap[String, Socket]()
@@ -84,6 +88,12 @@ object TunnelServer {
     }
   }
 
+  /**
+    * Starts a listener for tunnel clients on port 9000.
+    * It accepts connections, reads the tunnel ID and session token,
+    * verifies the session token, and registers the tunnel if valid.
+    */
+
   def startTunnelListener(): Unit = {
     val serverSocket = new ServerSocket(9000)
     println("Listening for tunnel clients on port 9000...")
@@ -91,9 +101,45 @@ object TunnelServer {
     while (true) {
       val clientSocket = serverSocket.accept()
       val reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream))
-      val tunnelId = reader.readLine().trim
+      val line = reader.readLine().trim
+      // Split the line into tunnelId and sessionToken
+      val parts = line.split(",", 2)
+      val tunnelAndProviderId = parts(0)
+      val providerId = tunnelAndProviderId.split("->-").headOption.getOrElse("")
+      val tunnelId = tunnelAndProviderId.split("->-").lastOption.getOrElse("")
+      val sessionToken = if (parts.length > 1) parts(1) else ""
       println(s"Registered new tunnel: $tunnelId")
-      tunnelRegistry.put(tunnelId, clientSocket)
+      println(s"Session token: $sessionToken")
+      // first verify the session token and if it's valid then register the tunnel
+      val isTunnelClientVerified: Boolean = verifyTunnelSession(providerId, sessionToken)
+      println("isTunnelClientVerified",isTunnelClientVerified)
+      if (isTunnelClientVerified) {
+        tunnelRegistry.put(tunnelId, clientSocket)
+      } else {
+        clientSocket.close()
+      }
+    }
+  }
+
+  /**
+    * Verifies the tunnel session token for the given provider.
+    * @param providerId The provider ID.
+    * @param sessionToken The session token to verify.
+    * @return true if the session token is valid, false otherwise.
+    */
+  def verifyTunnelSession(providerId: String, sessionToken: String): Boolean = {
+    ProviderDetailsRepository.getProviderUrlAndToken(providerId).unsafeRunSync() match {
+      case Right((_, verificationToken)) =>
+        if (verificationToken == sessionToken) {
+          println(s"Tunnel session verified for provider I  D: $providerId")
+          true
+        } else {
+          println(s"Invalid session token for provider ID: $providerId")
+          false
+        }
+      case Left(error) =>
+        println(s"Error verifying tunnel session for provider ID: $providerId - $error")
+        false
     }
   }
 }

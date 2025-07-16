@@ -1,18 +1,18 @@
-package main
+package tunnels
 
 import java.net.Socket
 import java.io._
 
 object TunnelClient {
-  def main(): Unit = {
-    val tunnelId = "my-app"
+  def startTunnel(tunnelId: String, sessionToken: String): Unit = {
     val tunnelSocket = new Socket("localhost", 9000)
 
     val tunnelIn = new BufferedReader(new InputStreamReader(tunnelSocket.getInputStream))
     val tunnelOut = new PrintWriter(tunnelSocket.getOutputStream, true)
 
-    tunnelOut.println(tunnelId)
-    println(s"Registered tunnel ID: $tunnelId")
+    // Send both tunnelId and sessionToken, separated by a comma
+    tunnelOut.println(s"$tunnelId,$sessionToken")
+    println(s"Registered tunnel ID: $tunnelId with session token: $sessionToken")
 
     while (true) {
       try {

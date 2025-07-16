@@ -1,18 +1,21 @@
 package main
 
 import cats.effect.{ExitCode, IO, IOApp}
-import main.SqlDB
+import tunnels._
 
 object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
-    for {
-      _ <- SqlDB.initialize() // Initialize the database and create necessary tables
-      _ <- IO(println("Database initialized successfully."))
-      _ <- startServer() // Start the Akka HTTP server
-    } yield ExitCode.Success
+    args match {
+      case sessionToken :: tunnelId :: _ =>
+        startServer(sessionToken, tunnelId).as(ExitCode.Success)
+      case _ =>
+        IO {
+          println("Usage: <program> <sessionToken> <tunnelId>")
+        }.as(ExitCode.Error)
+    }
   }
 
-  def startServer(): IO[Unit] = IO {
-    TunnelClient.main() // Start the server
+  def startServer(sessionToken: String, tunnelId: String): IO[Unit] = IO {
+    TunnelClient.startTunnel(tunnelId, sessionToken)
   }
 }
