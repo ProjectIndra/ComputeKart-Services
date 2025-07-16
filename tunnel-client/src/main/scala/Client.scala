@@ -4,7 +4,7 @@ import java.net.Socket
 import java.io._
 
 object TunnelClient {
-  def startTunnel(tunnelId: String, sessionToken: String): Unit = {
+  def startTunnel(tunnelId: String, sessionToken: String, host:String, port:Int): Unit = {
     val tunnelSocket = new Socket("localhost", 9000)
 
     val tunnelIn = new BufferedReader(new InputStreamReader(tunnelSocket.getInputStream))
@@ -19,12 +19,12 @@ object TunnelClient {
         val tunnelRequest = tunnelIn.readLine()
         println(s"Received from server: $tunnelRequest")
 
-        val localSocket = new Socket("localhost", 3000)
+        val localSocket = new Socket(host, port)
         val localIn = new BufferedReader(new InputStreamReader(localSocket.getInputStream))
         val localOut = new PrintWriter(localSocket.getOutputStream, true)
 
         localOut.println("GET / HTTP/1.1")
-        localOut.println("Host: localhost")
+        localOut.println(s"Host: ${host}:${port}")
         localOut.println("")
 
         val responseBuilder = new StringBuilder

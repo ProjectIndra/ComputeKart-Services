@@ -292,7 +292,7 @@ object ProviderDetailsRepository {
     val query =
       sql"""
           SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
-          FROM provider
+          FROM providers
           WHERE provider_id = $providerId
           LIMIT 1
       """.query[(String, String, String, String, String, String)].option
