@@ -4,15 +4,15 @@ import java.net.Socket
 import java.io._
 
 object TunnelClient {
-  def startTunnel(tunnelId: String, sessionToken: String, host:String, port:Int): Unit = {
+  def startTunnel(VerificationToken: String, host: String, port: Int): Unit = {
     val tunnelSocket = new Socket("localhost", 9000)
 
     val tunnelIn = new BufferedReader(new InputStreamReader(tunnelSocket.getInputStream))
     val tunnelOut = new PrintWriter(tunnelSocket.getOutputStream, true)
 
     // Send both tunnelId and sessionToken, separated by a comma
-    tunnelOut.println(s"$tunnelId,$sessionToken")
-    println(s"Registered tunnel ID: $tunnelId with session token: $sessionToken")
+    tunnelOut.println(s"$VerificationToken")
+    println(s"Registered tunnel with verification token: $VerificationToken")
 
     while (true) {
       try {

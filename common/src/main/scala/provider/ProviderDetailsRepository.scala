@@ -502,7 +502,7 @@ object ProviderDetailsRepository {
             case Some(details) if !acc.exists(_.get("user_id") == Some(clientUserId)) =>
               acc :+ Map(
                 "user_id" -> details.userId,
-                "name" -> (details.firstName + " " + details.lastName),
+                "name" -> (details.username),
                 "email" -> details.email
               )
             case _ => acc

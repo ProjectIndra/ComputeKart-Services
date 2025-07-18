@@ -3,34 +3,46 @@ package tunnels
 import cats.effect.IO
 import doobie._
 import doobie.implicits._
+import java.util.UUID
+
 import main.SqlDB
 
 case class TunnelDetails(
-  user_id : String,
-  provider_tunnel_id : String,
-  management_server_verification_token : String,
-  provider_id : Option[String],
-  provider_name : Option[String],
+  userId: String,
+  username: String,
+)
+
+case class TunnelDetails2(
+  tunnelNo: Int,
+  username: String,
 )
 
 object TunnelDetailsRepository {
 
-  def createTunnelDetailsTable(): IO[Int] = {
-    val createTableQuery =
+  def createNewTunnel(tunnelDetails: TunnelDetails): IO[(Int, String)] = {
+    val sessionToken = UUID.randomUUID().toString
+
+    val query =
       sql"""
-        CREATE TABLE IF NOT EXISTS tunnel_details (
-          user_id VARCHAR(255) NOT NULL,
-          provider_tunnel_id VARCHAR(255) NOT NULL,
-          management_server_verification_token VARCHAR(255),
-          provider_id VARCHAR(255),
-          provider_name VARCHAR(255),
-          PRIMARY KEY (provider_tunnel_id)
-        )
+        INSERT INTO tunnels (user_id, username, session_token)
+        VALUES (${tunnelDetails.userId}, ${tunnelDetails.username}, ${sessionToken})
       """.update.run
 
     SqlDB.transactor.use { xa =>
-      createTableQuery.transact(xa)
+      query.transact(xa).map(rowsAffected => (rowsAffected, sessionToken))
     }
   }
 
+  def verifyTunnelToken(sessionToken: String): IO[Option[TunnelDetails2]] = {
+    val query =
+      sql"""
+        SELECT tunnel_no, username
+        FROM tunnels
+        WHERE session_token = $sessionToken
+      """.query[TunnelDetails2].option
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa)
+    }
+  }
 }

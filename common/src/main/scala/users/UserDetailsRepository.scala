@@ -7,8 +7,7 @@ import main.SqlDB
 case class UserDetails(
   userId: String,
   email: String,
-  firstName: String,
-  lastName: String
+  username: String
 )
 
 object UserDetailsRepository {
@@ -16,7 +15,7 @@ object UserDetailsRepository {
   def getClientDetails(clientUserId: String): IO[Either[Throwable, Option[UserDetails]]] = {
     val query =
       sql"""
-        SELECT user_id, email, first_name, last_name
+        SELECT user_id, email, username
         FROM users
         WHERE user_id = $clientUserId
       """.query[UserDetails].option

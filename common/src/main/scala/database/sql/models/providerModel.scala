@@ -25,7 +25,6 @@ object ProviderModel {
           provider_rating FLOAT NOT NULL, -- Rating of the provider
           provider_url VARCHAR(255) NOT NULL, -- URL of the provider
           management_server_verification_token VARCHAR(255), -- Verification token
-          provider_tunnel_id VARCHAR(255), -- Tunnel ID for the provider
           PRIMARY KEY (provider_id)
         )
       """.update.run

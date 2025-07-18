@@ -14,7 +14,7 @@ import scala.util.{Failure, Success}
 
 import cats.effect.unsafe.implicits.global
 
-import providers.ProviderDetailsRepository
+import tunnels.TunnelDetailsRepository._
 
 object TunnelServer {
 
@@ -102,44 +102,21 @@ object TunnelServer {
       val clientSocket = serverSocket.accept()
       val reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream))
       val line = reader.readLine().trim
-      // Split the line into tunnelId and sessionToken
-      val parts = line.split(",", 2)
-      val tunnelAndProviderId = parts(0)
-      val providerId = tunnelAndProviderId.split("->-").headOption.getOrElse("")
-      val tunnelId = tunnelAndProviderId.split("->-").lastOption.getOrElse("")
-      val sessionToken = if (parts.length > 1) parts(1) else ""
-      println(s"Registered new tunnel: $tunnelId")
-      println(s"Session token: $sessionToken")
-      // first verify the session token and if it's valid then register the tunnel
-      val isTunnelClientVerified: Boolean = verifyTunnelSession(providerId, sessionToken)
-      println("isTunnelClientVerified",isTunnelClientVerified)
-      if (isTunnelClientVerified) {
-        tunnelRegistry.put(tunnelId, clientSocket)
-      } else {
-        clientSocket.close()
-      }
-    }
-  }
+      val sessionToken = line
 
-  /**
-    * Verifies the tunnel session token for the given provider.
-    * @param providerId The provider ID.
-    * @param sessionToken The session token to verify.
-    * @return true if the session token is valid, false otherwise.
-    */
-  def verifyTunnelSession(providerId: String, sessionToken: String): Boolean = {
-    ProviderDetailsRepository.getProviderUrlAndToken(providerId).unsafeRunSync() match {
-      case Right((_, verificationToken)) =>
-        if (verificationToken == sessionToken) {
-          println(s"Tunnel session verified for provider I  D: $providerId")
-          true
-        } else {
-          println(s"Invalid session token for provider ID: $providerId")
-          false
-        }
-      case Left(error) =>
-        println(s"Error verifying tunnel session for provider ID: $providerId - $error")
-        false
+      // Execute the IO operation to verify the session token
+      verifyTunnelToken(sessionToken).unsafeRunAsync {
+        case Right(Some(tunnelDetails)) =>
+          val tunnelAndUsername = s"${tunnelDetails.tunnelNo}.${tunnelDetails.username}"
+          tunnelRegistry.put(tunnelAndUsername, clientSocket)
+          println(s"Tunnel registered: $tunnelAndUsername")
+        case Right(None) =>
+          println("Invalid session token. Closing client connection.")
+          clientSocket.close()
+        case Left(error) =>
+          println(s"Error verifying session token: ${error.getMessage}")
+          clientSocket.close()
+      }
     }
   }
 }

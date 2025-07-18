@@ -85,7 +85,7 @@ object AuthMiddleware {
         case Some(userDetails) => IO.pure(userDetails)
         case None => IO.raiseError(new Exception("Invalid user"))
       }
-    } yield Right(User(user.userId, user.firstName, Some(cliDetails.cli_id)))
+    } yield Right(User(user.userId, user.username, Some(cliDetails.cli_id)))
   }
 
   private def verifyUiToken(token: String): IO[Either[String, User]] = {
@@ -111,7 +111,7 @@ object AuthMiddleware {
       )
 
       userDetails <- UserDetailsRepository.getClientDetails(userId).flatMap {
-        case Right(Some(user)) => IO.pure(Right(User(user.userId, user.firstName, None)))
+        case Right(Some(user)) => IO.pure(Right(User(user.userId, user.username, None)))
         case Right(None) => IO.pure(Left("Invalid user"))
         case Left(error) => IO.pure(Left(s"Error fetching user details: ${error.getMessage}"))
       }

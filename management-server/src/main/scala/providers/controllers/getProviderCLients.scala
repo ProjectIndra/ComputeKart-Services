@@ -50,7 +50,7 @@ object ProviderClientDetailsController extends BaseController {
                             Some(
                               ClientDetails(
                                 user_id = details.userId,
-                                name = s"${details.firstName} ${details.lastName}",
+                                name = s"${details.username}",
                                 email = details.email
                               )
                             )

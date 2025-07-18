@@ -9,6 +9,7 @@ import users.models.UserModel
 import cli.models.CliModel
 import vms.models.{VmDetailsModel, VmStatusModel, WireguardConnectionModel}
 import providers.models.{ProviderConfModel, ProviderModel}
+import tunnels.models.TunnelModel
 
 object SqlDB {
   // Load configuration
@@ -43,6 +44,7 @@ object SqlDB {
       _ <- WireguardConnectionModel.createWireguardConnectionTable()
       _ <- ProviderConfModel.createProviderConfTable()
       _ <- ProviderModel.createProviderTable()
+      _ <- TunnelModel.createTunnelTable()
     } yield ()
   }
 }

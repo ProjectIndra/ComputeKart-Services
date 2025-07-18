@@ -14,6 +14,8 @@ import java.util.UUID
 import utils.CryptoUtils._
 
 import middleware.BaseController
+import tunnels.TunnelDetailsRepository
+import tunnels.TunnelDetails
 
 case class ProviderRequest(
   providerVerificationToken: String,
@@ -48,19 +50,24 @@ object VerifyProviderTokenController extends BaseController {
     post {
       entity(as[ProviderRequest]) { request =>
         val result = for {
+          // Decode the JWT token
           decodedToken <- decodeJwt(request.providerVerificationToken)
           userId <- IO.fromOption(decodedToken.get("user_id"))(new RuntimeException("user_id is missing in token"))
           providerId <- IO.fromOption(decodedToken.get("provider_id"))(new RuntimeException("provider_id is missing in token"))
 
-          userExists <- UserDetailsRepository.getClientDetails(userId).map {
-            case Right(Some(_)) => true
-            case _ => false
+          // Verify if the user exists and fetch username
+          userDetails <- UserDetailsRepository.getClientDetails(userId).flatMap {
+            case Right(Some(user)) => IO.pure(user)
+            case Right(None) => IO.raiseError(new RuntimeException("Invalid User"))
+            case Left(e) => IO.raiseError(e)
           }
-          _ <- IO.raiseWhen(!userExists)(new RuntimeException("Invalid User"))
+          username = userDetails.username 
 
+          // Get provider details
           providerDetails <- ProviderDetailsRepository.getProviderDetails(providerId)
           managementServerVerificationToken = UUID.randomUUID().toString
 
+          // Create new provider details
           newProviderDetails = ProviderWholeDB(
             providerId,
             request.providerRamCapacity,
@@ -75,13 +82,21 @@ object VerifyProviderTokenController extends BaseController {
             request.providerAllowedNetworks
           )
 
-          result <- providerDetails match {
-            case Right(providerDetails) =>
+          // Update or create provider details
+          providerResult <- providerDetails match {
+            case Right(_) =>
               updateProviderDetails(newProviderDetails)
             case Left(_) =>
               createProviderDetails(newProviderDetails)
           }
-        } yield result.map(_ => Map("message" -> "Provider token verified successfully", "management_server_verification_token" -> managementServerVerificationToken))
+
+          // Create a new tunnel and get the session token
+          tunnelResult <- TunnelDetailsRepository.createNewTunnel(TunnelDetails(userId, username))
+        } yield providerResult.map(_ => Map(
+          "message" -> "Provider token verified successfully",
+          "management_server_verification_token" -> managementServerVerificationToken,
+          "tunnel_server_verification_token" -> tunnelResult._2 // Include the tunnel session token
+        ))
 
         onComplete(result.unsafeToFuture()) {
           case scala.util.Success(Right(response)) =>
