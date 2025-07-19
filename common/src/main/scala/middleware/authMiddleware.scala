@@ -24,56 +24,60 @@ object AuthMiddleware {
   private val config = ConfigFactory.load()
   private val SECRET_KEY: String = config.getString("crypto.secretKey")
 
- def uiLoginRequired(route: Map[String, String] => Route): Route = {
-  extractRequestContext { ctx =>
-    val authorizationHeader = ctx.request.headers.find(_.name == "Authorization").map(_.value)
-    authorizationHeader match {
+  def uiLoginRequired(route: Map[String, String] => Route): Route = extractRequestContext { ctx =>
+
+    val authHeaderOpt = ctx.request.headers.find(_.is("authorization")).map(_.value)
+
+    authHeaderOpt match {
       case Some(authHeader) =>
-        val tokenType = authHeader.split(" ").headOption.getOrElse("")
-        val token = authHeader.split(" ").lift(1).getOrElse("")
+        val parts = authHeader.split(" ")
+        if (parts.length != 2) {
+          complete(StatusCodes.Unauthorized, "Invalid Authorization header format")
+        } else {
+          val tokenType = parts(0)
+          val token = parts(1)
 
-        tokenType match {
-          case "BearerCLI" =>
-            onComplete(verifyCliToken(token).unsafeToFuture()) {
-              case scala.util.Success(Right(user)) =>
-                val updatedRequest = ctx.request.entity match {
-                  case HttpEntity.Strict(contentType, data) =>
-                    val existingRequest = io.circe.parser.parse(data.utf8String).getOrElse(Json.obj()).as[Map[String, String]].getOrElse(Map.empty)
-                    existingRequest + ("user_id" -> user.userId)
-                  case _ => Map("user_id" -> user.userId)
-                }
-                route(updatedRequest)
-              case scala.util.Success(Left(error)) =>
-                complete(HttpResponse(StatusCodes.Unauthorized, entity = HttpEntity(ContentTypes.`application/json`, Map("error" -> error).asJson.noSpaces)))
-              case scala.util.Failure(exception) =>
-                complete(HttpResponse(StatusCodes.InternalServerError, entity = HttpEntity(ContentTypes.`application/json`, Map("error" -> exception.getMessage).asJson.noSpaces)))
-            }
+          val resultIO: IO[Either[String, User]] = tokenType match {
+            case "BearerCLI" => verifyCliToken(token)
+            case "Bearer"    => verifyUiToken(token)
+            case _           => IO.pure(Left("Invalid token type"))
+          }
 
-          case "Bearer" =>
-            onComplete(verifyUiToken(token).unsafeToFuture()) {
-              case scala.util.Success(Right(user)) =>
-                val updatedRequest = ctx.request.entity match {
-                  case HttpEntity.Strict(contentType, data) =>
-                    val existingRequest = io.circe.parser.parse(data.utf8String).getOrElse(Json.obj()).as[Map[String, String]].getOrElse(Map.empty)
-                    existingRequest + ("user_id" -> user.userId)
-                  case _ => Map("user_id" -> user.userId)
-                }
-                route(updatedRequest)
-              case scala.util.Success(Left(error)) =>
-                complete(HttpResponse(StatusCodes.Unauthorized, entity = HttpEntity(ContentTypes.`application/json`, Map("error" -> error).asJson.noSpaces)))
-              case scala.util.Failure(exception) =>
-                complete(HttpResponse(StatusCodes.InternalServerError, entity = HttpEntity(ContentTypes.`application/json`, Map("error" -> exception.getMessage).asJson.noSpaces)))
-            }
+          onComplete(resultIO.unsafeToFuture()) {
+            case Success(Right(user)) =>
+              val method = ctx.request.method.value
+              method match {
+                case "POST" | "PUT" =>
+                  entity(as[String]) { body =>
+                    val parsedJson = io.circe.parser.parse(body).getOrElse(Json.obj())
+                    val requestMap = parsedJson.as[Map[String, String]].getOrElse(Map.empty)
+                    val finalMap = requestMap + ("user_id" -> user.userId)
+                    route(finalMap)
+                  }
 
-          case _ =>
-            complete(HttpResponse(StatusCodes.Unauthorized, entity = HttpEntity(ContentTypes.`application/json`, Map("error" -> "Invalid token format").asJson.noSpaces)))
+                case "GET" | "DELETE" =>
+                  parameterMap { params =>
+                    val finalMap = params + ("user_id" -> user.userId)
+                    route(finalMap)
+                  }
+
+                case _ =>
+                  complete(StatusCodes.MethodNotAllowed)
+              }
+
+            case Success(Left(error)) =>
+              complete(StatusCodes.Unauthorized, s"""{"error":"$error"}""")
+
+            case Failure(ex) =>
+              complete(StatusCodes.InternalServerError, s"""{"error":"${ex.getMessage}"}""")
+          }
         }
 
       case None =>
-        complete(HttpResponse(StatusCodes.Unauthorized, entity = HttpEntity(ContentTypes.`application/json`, Map("error" -> "Authorization header missing").asJson.noSpaces)))
+        complete(StatusCodes.Unauthorized, "Authorization header missing")
     }
   }
-}
+
 
   private def verifyCliToken(token: String): IO[Either[String, User]] = {
     for {

@@ -62,6 +62,24 @@ object ProviderDetailsRepository {
     }
   }
 
+  def getProvidersListFiltered(userId: String, providerName: String): IO[List[ProviderDetails]] = {
+    val query =
+      sql"""
+      SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
+      FROM provider_details
+      WHERE user_id = $userId AND provider_name LIKE %$providerName%
+    """.query[ProviderDetails].to[List]
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(providers) => providers
+        case Left(e) =>
+          println(s"Error fetching filtered providers list: ${e.getMessage}")
+          List.empty[ProviderDetails]
+      }
+    }
+  }
+
   def canCreateVm(
     providerId: String,
     vcpus: Option[Int],
@@ -484,7 +502,7 @@ object ProviderDetailsRepository {
       vmClientsResult <- VmDetailsRepository.getVmClients(providerUserId)
       vmClients <- IO.fromEither(vmClientsResult.left.map(e => new RuntimeException(s"Error fetching VM clients: ${e.getMessage}")))
       clientDetails <- vmClients.foldLeft(IO.pure(List.empty[Map[String, Any]])) { (accIO, vmClient) =>
-        val (clientUserId, vmId) = vmClient
+        val (clientUserId, vmId, _) = vmClient
 
         for {
           acc <- accIO

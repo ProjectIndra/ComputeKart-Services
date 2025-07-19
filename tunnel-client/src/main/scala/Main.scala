@@ -8,14 +8,13 @@ object Main extends IOApp {
     for {
       _ <- SqlDB.initialize() // Initialize the database and create necessary tables
       _ <- IO(println("Database initialized successfully."))
-      _ <- startServer() // Start the Akka HTTP server
     } yield ExitCode.Success
-    
+
     args match {
-      case VerificationToken :: host :: port :: _ =>
-        startServer(VerificationToken, host, port.toInt).as(ExitCode.Success)
-      case sessionToken :: tunnelId :: _ =>
-        startServer(VerificationToken, "localhost", 6060).as(ExitCode.Success)
+      case verificationToken :: host :: port :: _ =>
+        startServer(verificationToken, host, port.toInt).as(ExitCode.Success)
+      case verificationToken :: tunnelId :: _ =>
+        startServer(verificationToken, "localhost", 6060).as(ExitCode.Success)
       case _ =>
         IO {
           println("Usage: <program> <sessionToken> <tunnelId> [host] [port]")
@@ -23,7 +22,7 @@ object Main extends IOApp {
     }
   }
 
-  def startServer(VerificationToken: String, host: String, port: Int): IO[Unit] = IO {
-    TunnelClient.startTunnel(VerificationToken, host, port)
+  def startServer(verificationToken: String, host: String, port: Int): IO[Unit] = IO {
+    TunnelClient.startTunnel(verificationToken, host, port)
   }
 }

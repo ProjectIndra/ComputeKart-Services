@@ -126,11 +126,12 @@ object VmDetailsRepository {
     val query =
       sql"""
         SELECT COUNT(*)
-        FROM vm_status
-        WHERE vm_id = $vmId
-        AND client_user_id = $clientUserId
-        AND (status = 'active' OR status = 'inactive')
-        AND vm_deleted = false
+        FROM vm_details vd
+        JOIN vm_status vs ON vd.vm_id = vs.vm_id
+        WHERE vd.vm_id = $vmId
+        AND vd.client_user_id = $clientUserId
+        AND (vs.status = 'active' OR vs.status = 'inactive')
+        AND vd.vm_deleted = false
       """.query[Int].unique
 
     SqlDB.transactor.use { xa =>
@@ -143,13 +144,14 @@ object VmDetailsRepository {
     }
   }
 
-  def getVmClients(providerUserId: String): IO[Either[Throwable, List[(String, String)]]] = {
+  def getVmClients(providerUserId: String): IO[Either[Throwable, List[(String, String, String)]]] = {
     val query =
       sql"""
-        SELECT client_user_id, vm_id
-        FROM vm_details
-        WHERE provider_user_id = $providerUserId
-      """.query[(String, String)].to[List]
+        SELECT vd.client_user_id, vd.vm_id, vs.status
+        FROM vm_details vd
+        JOIN vm_status vs ON vd.vm_id = vs.vm_id
+        WHERE vd.provider_user_id = $providerUserId
+      """.query[(String, String, String)].to[List]
 
     SqlDB.transactor.use { xa =>
       query.transact(xa).attempt.map {
@@ -164,10 +166,11 @@ object VmDetailsRepository {
   def getAllVms(userId: String): IO[Either[Throwable, List[(String, String, String, String, String, String, String, String, String, LocalDateTime)]]] = {
     val query =
       sql"""
-      SELECT client_user_id, vcpu, ram, storage, vm_image_type, vm_name, internal_vm_name,
-             provider_id, status, vm_created_at
-      FROM vm_details
-      WHERE client_user_id = $userId
+      SELECT vd.client_user_id, vd.vcpu, vd.ram, vd.storage, vd.vm_image_type, vd.vm_name, 
+             vd.internal_vm_name, vd.provider_id, vs.status, vd.vm_created_at
+      FROM vm_details vd
+      JOIN vm_status vs ON vd.vm_id = vs.vm_id
+      WHERE vd.client_user_id = $userId
     """.query[
         (String, String, String, String, String, String, String, String, String, LocalDateTime)
       ].to[List]
@@ -182,13 +185,36 @@ object VmDetailsRepository {
     }
   }
 
+  def getAllVmsFiltered(userId: String, vmName: String): IO[Either[Throwable, List[(String, String, String, String, String, String, String, String, String, LocalDateTime)]]] = {
+    val query =
+      sql"""
+      SELECT vd.client_user_id, vd.vcpu, vd.ram, vd.storage, vd.vm_image_type, vd.vm_name, 
+             vd.internal_vm_name, vd.provider_id, vs.status, vd.vm_created_at
+      FROM vm_details vd
+      JOIN vm_status vs ON vd.vm_id = vs.vm_id
+      WHERE vd.client_user_id = $userId AND vd.vm_name LIKE %$vmName%
+    """.query[
+        (String, String, String, String, String, String, String, String, String, LocalDateTime)
+      ].to[List]
+
+    SqlDB.transactor.use { xa =>
+      query.transact(xa).attempt.map {
+        case Right(rows) => Right(rows)
+        case Left(e) =>
+          println(s"Error fetching filtered VMs: ${e.getMessage}")
+          Left(e)
+      }
+    }
+  }
+
   def getAllActiveVms(userId: String): IO[Either[Throwable, List[(String, String, String, String, String, String, String, String, String, LocalDateTime)]]] = {
     val query =
       sql"""
-      SELECT client_user_id, vcpu, ram, storage, vm_image_type, vm_name, internal_vm_name,
-             provider_id, status, vm_created_at
-      FROM vm_details
-      WHERE client_user_id = $userId AND status = 'active'
+      SELECT vd.client_user_id, vd.vcpu, vd.ram, vd.storage, vd.vm_image_type, vd.vm_name, 
+             vd.internal_vm_name, vd.provider_id, vs.status, vd.vm_created_at
+      FROM vm_details vd
+      JOIN vm_status vs ON vd.vm_id = vs.vm_id
+      WHERE vd.client_user_id = $userId AND vs.status = 'active'
     """.query[
         (String, String, String, String, String, String, String, String, String, LocalDateTime)
       ].to[List]

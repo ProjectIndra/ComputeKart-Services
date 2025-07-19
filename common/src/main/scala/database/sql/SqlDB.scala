@@ -36,15 +36,17 @@ object SqlDB {
 
   // method to initalize the all the required tables
   def initialize(): IO[Unit] = {
-    for {
-      _ <- UserModel.createUsersTable()
-      _ <- CliModel.createCliSessionsTable()
-      _ <- VmDetailsModel.createVmDetailsTable()
-      _ <- VmStatusModel.createVmStatusTable()
-      _ <- WireguardConnectionModel.createWireguardConnectionTable()
-      _ <- ProviderConfModel.createProviderConfTable()
-      _ <- ProviderModel.createProviderTable()
-      _ <- TunnelModel.createTunnelTable()
-    } yield ()
+    val tasks = List(
+      UserModel.createUsersTable(),
+      CliModel.createCliSessionsTable(),
+      VmDetailsModel.createVmDetailsTable(),
+      VmStatusModel.createVmStatusTable(),
+      WireguardConnectionModel.createWireguardConnectionTable(),
+      ProviderConfModel.createProviderConfTable(),
+      ProviderModel.createProviderTable(),
+      TunnelModel.createTunnelTable()
+    )
+
+    tasks.parSequence_.void
   }
 }
