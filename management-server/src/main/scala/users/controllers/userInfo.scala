@@ -8,7 +8,6 @@ import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 
 import middleware.BaseController
-
 import utils.ErrorResponse
 import users.UserDetailsRepository
 
@@ -22,50 +21,54 @@ object UserInfoController extends BaseController {
     concat(
       path("getUserDetails") {
         get {
-          parameter("user_id") { userId =>
-            val result = UserDetailsRepository.getClientDetails(userId).unsafeToFuture()
+          uiLoginRequired { request =>
+            request.get("user_id") match {
+              case Some(userId) =>
+                val result = UserDetailsRepository.getClientDetails(userId).unsafeToFuture()
 
-            onComplete(result) {
-              case scala.util.Success(Right(Some(user))) =>
-                complete((200, user.asJson))
-              case scala.util.Success(Right(None)) =>
-                complete((404, ErrorResponse("User not found").asJson))
-              case scala.util.Success(Left(error)) =>
-                complete((500, ErrorResponse("Database error: " + error.getMessage).asJson))
-              case scala.util.Failure(ex) =>
-                complete((500, ErrorResponse("Unexpected error: " + ex.getMessage).asJson))
+                onComplete(result) {
+                  case scala.util.Success(Right(Some(user))) =>
+                    complete((200, user.asJson))
+                  case scala.util.Success(Right(None)) =>
+                    complete((404, ErrorResponse("User not found").asJson))
+                  case scala.util.Success(Left(error)) =>
+                    complete((500, ErrorResponse("Database error: " + error.getMessage).asJson))
+                  case scala.util.Failure(ex) =>
+                    complete((500, ErrorResponse("Unexpected error: " + ex.getMessage).asJson))
+                }
+
+              case None =>
+                complete((400, ErrorResponse("User ID missing from token").asJson))
             }
           }
         }
       },
+
       path("updateUserDetails") {
         put {
-          entity(as[UpdateUserRequest]) { request =>
-            parameter("user_id") { userId =>
-              val validatedProfileImage = request.profile_image match {
-                case Some(image) if image.nonEmpty =>
-                  Some(image)
-                case _ =>
-                  None
-              }
+          uiLoginRequired { request =>
+            request.get("user_id") match {
+              case Some(userId) =>
+                entity(as[UpdateUserRequest]) { updateRequest =>
+                  val validatedProfileImage = updateRequest.profile_image.filter(_.nonEmpty)
+                  val validatedProfileName = updateRequest.profile_name.filter(_.nonEmpty)
 
-              val validatedProfileName = request.profile_name match {
-                case Some(name) if name.nonEmpty =>
-                  Some(name)
-                case _ =>
-                  None
-              }
+                  val result = UserDetailsRepository
+                    .updateUserDetails(userId, validatedProfileName, validatedProfileImage)
+                    .unsafeToFuture()
 
-              val result = UserDetailsRepository.updateUserDetails(userId, validatedProfileName, validatedProfileImage).unsafeToFuture()
+                  onComplete(result) {
+                    case scala.util.Success(updatedRows) if updatedRows > 0 =>
+                      complete((200, UpdateUserResponse("User details updated successfully").asJson))
+                    case scala.util.Success(_) =>
+                      complete((404, ErrorResponse("No changes made or user not found").asJson))
+                    case scala.util.Failure(ex) =>
+                      complete((500, ErrorResponse("Database error: " + ex.getMessage).asJson))
+                  }
+                }
 
-              onComplete(result) {
-                case scala.util.Success(updatedRows) if updatedRows > 0 =>
-                  complete((200, UpdateUserResponse("User details updated successfully").asJson))
-                case scala.util.Success(_) =>
-                  complete((404, ErrorResponse("No changes made or user not found").asJson))
-                case scala.util.Failure(ex) =>
-                  complete((500, ErrorResponse("Database error: " + ex.getMessage).asJson))
-              }
+              case None =>
+                complete((400, ErrorResponse("User ID missing from token").asJson))
             }
           }
         }

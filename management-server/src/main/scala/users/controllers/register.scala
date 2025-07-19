@@ -23,6 +23,9 @@ object RegisterController {
   def register: Route = path("register") {
     post {
       entity(as[RegisterRequest]) { request =>
+
+        println("Register endpoint hit with request: " + request)
+        
         // Validate input
         if (!request.email.contains("@")) {
           complete((400, ErrorResponse("Invalid email").asJson))
