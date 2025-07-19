@@ -38,7 +38,7 @@ object ProviderClientDetailsController extends BaseController {
             activeClients <- vmClients match {
               case Right(vmClientList) =>
                 vmClientList.foldLeft(IO.pure(List.empty[ClientDetails])) { (accIO, vmClient) =>
-                  val (clientUserId, vmId) = vmClient
+                  val (clientUserId, vmId, _) = vmClient
 
                   for {
                     acc <- accIO
