@@ -95,7 +95,7 @@ object VerifyProviderTokenController extends BaseController {
         } yield providerResult.map(_ => Map(
           "message" -> "Provider token verified successfully",
           "management_server_verification_token" -> managementServerVerificationToken,
-          "tunnel_server_verification_token" -> tunnelResult._2 // Include the tunnel session token
+          "tunnel_server_verification_token" -> tunnelResult._2
         ))
 
         onComplete(result.unsafeToFuture()) {

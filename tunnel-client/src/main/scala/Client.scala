@@ -5,7 +5,7 @@ import java.io._
 
 object TunnelClient {
   def startTunnel(VerificationToken: String, host: String, port: Int): Unit = {
-    val tunnelSocket = new Socket("localhost", 9000)
+    val tunnelSocket = new Socket("34.56.109.189", 9000)
 
     val tunnelIn = new BufferedReader(new InputStreamReader(tunnelSocket.getInputStream))
     val tunnelOut = new PrintWriter(tunnelSocket.getOutputStream, true)
