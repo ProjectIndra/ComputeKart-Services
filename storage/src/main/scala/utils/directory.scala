@@ -74,6 +74,17 @@ object Directory {
     }
 
     fileInputStream.close()
+
+    // Save metadata to a JSON file
+    val metadataFile = new File(storageDir, s"metadata-${file.getName}.json")
+    val metadata = JsObject(
+      "originalFileName" -> JsString(file.getName),
+      "originalFilePath" -> JsString(file.getAbsolutePath)
+    )
+    val fileOutputStream = new FileOutputStream(metadataFile)
+    fileOutputStream.write(metadata.prettyPrint.getBytes)
+    fileOutputStream.close()
+
     file.getName // Return the file ID
   }
 
@@ -117,6 +128,18 @@ object Directory {
   def addFileToNetwork(filePath: String): Future[FileMetadata] = {
     val fileId = addFileToOwnDirectory(filePath)
 
+    // Read metadata file
+    val metadataFile = new File(storageDir, s"metadata-$fileId.json")
+    if (!metadataFile.exists()) {
+      throw new RuntimeException(s"Metadata file not found for file ID: $fileId")
+    }
+    val metadataContent = new String(Files.readAllBytes(metadataFile.toPath))
+    val metadataJson = metadataContent.parseJson.asJsObject
+
+    // Extract original file name and path
+    val originalFileName = metadataJson.fields("originalFileName").convertTo[String]
+    val originalFilePath = metadataJson.fields("originalFilePath").convertTo[String]
+
     // List all chunks created for the file
     val chunkFiles = Files.list(Paths.get(storageDir))
       .filter(path => path.getFileName.toString.startsWith(s"$fileId-"))
@@ -142,6 +165,18 @@ object Directory {
               chunks(index) = chunks(index).copy(serverLinks = managerLink +: serverLinks)
             }
           }
+
+          // Save final metadata to the same path as the original metadata file
+          val finalMetadata = JsObject(
+            "fileID" -> JsString(fileId),
+            "originalFileName" -> JsString(originalFileName),
+            "originalFilePath" -> JsString(originalFilePath),
+            "chunks" -> JsArray(chunks.map(_.toJson).toVector)
+          )
+          val fileOutputStream = new FileOutputStream(metadataFile) // Overwrite the original metadata file
+          fileOutputStream.write(finalMetadata.prettyPrint.getBytes)
+          fileOutputStream.close()
+
           // Return metadata after successful upload
           FileMetadata(fileId, chunks)
         }

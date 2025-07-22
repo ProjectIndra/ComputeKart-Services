@@ -5,6 +5,8 @@ import akka.http.scaladsl.Http
 import akka.stream.Materializer
 import akka.http.scaladsl.server.Directives._
 
+import storage.FileReveiveRoutes
+
 object Server {
   implicit val system: ActorSystem = ActorSystem("storagePeer")
   implicit val materializer: Materializer = Materializer(system)
@@ -16,6 +18,7 @@ object Server {
         complete("Welcome to the ComputeKart Storage Peer!")
       }
     } 
+    ~ FileReveiveRoutes.route
 
   def run(): Unit = {
     val bindingFuture = Http().newServerAt("localhost", 5000).bindFlow(routes)
