@@ -16,8 +16,6 @@ object ProviderConfModel {
           provider_allowed_storage VARCHAR(255) NOT NULL, -- Allowed storage for the provider
           provider_allowed_vms VARCHAR(255) NOT NULL, -- Allowed number of VMs
           provider_allowed_networks VARCHAR(255) NOT NULL, -- Allowed number of networks
-          conf_created_at DATETIME NOT NULL, -- Timestamp when the configuration was created
-          conf_updated_at DATETIME NOT NULL, -- Timestamp when the configuration was last updated
           PRIMARY KEY (provider_id)
         )
       """.update.run

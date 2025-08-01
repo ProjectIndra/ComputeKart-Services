@@ -28,6 +28,7 @@ case class ProviderRequest(
 )
 
 case class ProviderWholeDB(
+  userId: String,
   providerId: String,
   providerRamCapacity: Int,
   providerVcpuCapacity: Int,
@@ -86,7 +87,7 @@ object ProviderTokenController extends BaseController {
             handleNewProvider(providerRequest, userId)
 
           case scala.util.Success(Right((userId, Some(providerId)))) =>
-            handleExistingProvider(providerRequest, providerId)
+            handleExistingProvider(providerRequest, providerId, userId)
 
           case scala.util.Success(Left(error)) =>
             complete((400, Map("error" -> s"Invalid or expired provider verification token: ${error.getMessage}").asJson))
@@ -102,6 +103,7 @@ object ProviderTokenController extends BaseController {
     val newProviderId = UUID.randomUUID().toString
     val managementServerVerificationToken = UUID.randomUUID().toString
     val providerWholeDB = ProviderWholeDB(
+      userId,
       newProviderId,
       providerRequest.providerRamCapacity,
       providerRequest.providerVcpuCapacity,
@@ -127,9 +129,10 @@ object ProviderTokenController extends BaseController {
     }
   }
 
-  private def handleExistingProvider(providerRequest: ProviderRequest, providerId: String): Route = {
+  private def handleExistingProvider(providerRequest: ProviderRequest, providerId: String, userId: String): Route = {
     val managementServerVerificationToken = UUID.randomUUID().toString
     val providerWholeDB = ProviderWholeDB(
+      userId = userId,
       providerId,
       providerRequest.providerRamCapacity,
       providerRequest.providerVcpuCapacity,
@@ -158,6 +161,7 @@ object ProviderTokenController extends BaseController {
   private def createProviderDetails(providerWholeDB: ProviderWholeDB): IO[Either[Throwable, Unit]] = {
     for {
       insertProvider <- ProviderDetailsRepository.insertProviderDetails(
+        providerWholeDB.userId,
         providerWholeDB.providerId,
         s"${UUID.randomUUID()}",
         "active",

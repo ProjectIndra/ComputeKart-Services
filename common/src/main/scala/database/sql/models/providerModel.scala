@@ -22,8 +22,8 @@ object ProviderModel {
           provider_used_storage VARCHAR(255), -- Used storage
           provider_used_vms VARCHAR(255), -- Number of used VMs
           provider_used_networks VARCHAR(255), -- Number of used networks
-          provider_rating FLOAT NOT NULL, -- Rating of the provider
-          provider_url VARCHAR(255) NOT NULL, -- URL of the provider
+          provider_rating FLOAT, -- Rating of the provider
+          provider_url VARCHAR(255), -- URL of the provider
           management_server_verification_token VARCHAR(255), -- Verification token
           PRIMARY KEY (provider_id)
         )
