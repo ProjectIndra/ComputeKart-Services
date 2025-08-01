@@ -52,7 +52,7 @@ object TempTokenTransaction {
           FROM temp_token
           WHERE temp_token = $tempToken
             AND is_used = false
-            AND created_at >= NOW() - INTERVAL '1 hour'
+            AND created_at >= NOW() - INTERVAL 10 HOUR
         """.query[(String, Option[String], Json)].option
 
       val updateQuery =

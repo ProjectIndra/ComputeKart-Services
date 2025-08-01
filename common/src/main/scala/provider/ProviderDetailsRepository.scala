@@ -5,6 +5,7 @@ import doobie.implicits._
 import main.SqlDB
 
 case class FullProviderDetails(
+  userId: String,
   providerId: String,
   providerName: String,
   providerStatus: String,
@@ -48,7 +49,7 @@ object ProviderDetailsRepository {
     val query =
       sql"""
       SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
-      FROM provider_details
+      FROM providers
       WHERE user_id = $userId
     """.query[ProviderDetails].to[List]
 
@@ -59,7 +60,7 @@ object ProviderDetailsRepository {
     val query =
       sql"""
       SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
-      FROM provider_details
+      FROM providers
       WHERE user_id = $userId AND provider_name LIKE %$providerName%
     """.query[ProviderDetails].to[List]
 
@@ -101,7 +102,7 @@ object ProviderDetailsRepository {
     val query =
       sql"""
       SELECT provider_id, provider_name, user_id, provider_type, provider_rating
-      FROM provider_details
+      FROM providers
       WHERE user_id = $userId
     """.query[ProviderDetails].to[List]
 
@@ -111,7 +112,7 @@ object ProviderDetailsRepository {
   def getProviderConf(providerId: String): IO[Either[Throwable, ProviderConf]] = {
     val query =
       sql"""
-      SELECT provider_id, provider_allowed_ram, provider_allowed_vcpu, provider_allowed_storage, provider_allowed_vms, provider_allowed_networks
+      SELECT provider_allowed_ram, provider_allowed_vcpu, provider_allowed_storage, provider_allowed_vms, provider_allowed_networks
       FROM provider_conf
       WHERE provider_id = $providerId
     """.query[ProviderConf].option
@@ -123,7 +124,7 @@ object ProviderDetailsRepository {
     val query =
       sql"""
       SELECT provider_id, provider_name, provider_status, provider_ram_capacity, provider_vcpu_capacity, provider_storage_capacity, provider_url, management_server_verification_token
-      FROM provider_details
+      FROM providers
       WHERE management_server_verification_token = $managementServerVerificationToken
     """.query[ProviderDetails].option
 
@@ -164,7 +165,7 @@ object ProviderDetailsRepository {
   ): IO[Either[Throwable, Unit]] = {
     val query =
       sql"""
-        UPDATE provider_details
+        UPDATE providers
         SET 
           provider_ram_capacity = $providerRamCapacity,
           provider_vcpu_capacity = $providerVcpuCapacity,
@@ -179,6 +180,7 @@ object ProviderDetailsRepository {
   }
 
   def insertProviderDetails(
+    userId: String,
     providerId: String,
     providerName: String,
     providerStatus: String,
@@ -190,7 +192,8 @@ object ProviderDetailsRepository {
   ): IO[Either[Throwable, Unit]] = {
     val query =
       sql"""
-        INSERT INTO provider_details (
+        INSERT INTO providers (
+          user_id,
           provider_id,
           provider_name,
           provider_status,
@@ -201,6 +204,7 @@ object ProviderDetailsRepository {
           management_server_verification_token
         )
         VALUES (
+          $userId,
           $providerId,
           $providerName,
           $providerStatus,
@@ -250,7 +254,7 @@ object ProviderDetailsRepository {
     val query =
       sql"""
           SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
-          FROM provider_details
+          FROM providers
           WHERE provider_id = $providerId
           LIMIT 1
       """.query[ProviderDetails].option
@@ -262,6 +266,7 @@ object ProviderDetailsRepository {
     val query =
       sql"""
         SELECT
+          pd.user_id,
           pd.provider_id,
           pd.provider_name,
           pd.provider_status,
@@ -280,7 +285,7 @@ object ProviderDetailsRepository {
           ps.provider_used_storage,
           ps.provider_used_vms,
           ps.provider_used_networks
-        FROM provider_details pd
+        FROM providers pd
         LEFT JOIN provider_conf pc ON pd.provider_id = pc.provider_id
         LEFT JOIN provider_stats ps ON pd.provider_id = ps.provider_id
         WHERE pd.provider_id = $providerId

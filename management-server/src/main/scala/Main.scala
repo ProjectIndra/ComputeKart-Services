@@ -8,7 +8,7 @@ object Main extends IOApp {
     for {
       xa <- SqlDB.initializeTransactor().allocated
       _ <- SqlDB.setTransactor(xa._1) // xa._1 is the transactor, xa._2 is the shutdown hook
-      _ <- SqlDB.initialize()
+      // _ <- SqlDB.initialize()
       _ <- startServer()
     } yield ExitCode.Success
 

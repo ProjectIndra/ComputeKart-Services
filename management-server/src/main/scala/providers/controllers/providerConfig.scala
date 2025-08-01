@@ -26,39 +26,38 @@ object ProviderConfigController extends BaseController {
 
   def getConfig: Route = path("getConfig") {
     post {
-      uiLoginRequired { user =>
-        entity(as[Map[String, String]]) { request =>
-          val managementServerVerificationToken = request.get("management_server_verification_token")
+      entity(as[Map[String, String]]) { request =>
+        val managementServerVerificationToken = request.get("management_server_verification_token")
 
-          if (managementServerVerificationToken.isEmpty) {
-            complete((400, Map("error" -> "Token is required").asJson))
-          } else {
-            val result = for {
-              providerEither <- ProviderDetailsRepository.getProviderByToken(managementServerVerificationToken.get)
-              provider <- IO.fromEither(providerEither).adaptError {
-                case ex => new RuntimeException(s"Invalid Token: ${ex.getMessage}")
-              }
-
-              providerConfEither <- ProviderDetailsRepository.getProviderConf(provider.providerId)
-              providerConf <- IO.fromEither(providerConfEither).adaptError {
-                case ex => new RuntimeException(s"Provider configuration not found: ${ex.getMessage}")
-              }
-            } yield Map(
-              "max_ram" -> providerConf.providerAllowedRam,
-              "max_cpu" -> providerConf.providerAllowedVcpu,
-              "max_disk" -> providerConf.providerAllowedStorage,
-              "max_vms" -> providerConf.providerAllowedVms,
-              "max_networks" -> providerConf.providerAllowedNetworks
-            )
-
-            onComplete(result.attempt.unsafeToFuture()) {
-              case scala.util.Success(Right(response)) =>
-                complete((200, response.asJson))
-              case scala.util.Success(Left(error)) =>
-                complete((500, Map("error" -> error.getMessage).asJson))
-              case scala.util.Failure(exception) =>
-                complete((500, Map("error" -> exception.getMessage).asJson))
+        if (managementServerVerificationToken.isEmpty) {
+          complete((400, Map("error" -> "Token is required").asJson))
+        } else {
+          val result = for {
+            providerEither <- ProviderDetailsRepository.getProviderByToken(managementServerVerificationToken.get)
+            provider <- IO.fromEither(providerEither).adaptError { case ex =>
+              new RuntimeException(s"Invalid Token: ${ex.getMessage}")
             }
+
+            providerConfEither <- ProviderDetailsRepository.getProviderConf(provider.providerId)
+            _ <- IO(println(s"Provider Configuration: $providerConfEither"))
+            providerConf <- IO.fromEither(providerConfEither).adaptError { case ex =>
+              new RuntimeException(s"Provider configuration not found: ${ex.getMessage}")
+            }
+          } yield Map(
+            "max_ram" -> providerConf.providerAllowedRam,
+            "max_cpu" -> providerConf.providerAllowedVcpu,
+            "max_disk" -> providerConf.providerAllowedStorage,
+            "max_vms" -> providerConf.providerAllowedVms,
+            "max_networks" -> providerConf.providerAllowedNetworks
+          )
+
+          onComplete(result.attempt.unsafeToFuture()) {
+            case scala.util.Success(Right(response)) =>
+              complete((200, response.asJson))
+            case scala.util.Success(Left(error)) =>
+              complete((500, Map("error" -> error.getMessage).asJson))
+            case scala.util.Failure(exception) =>
+              complete((500, Map("error" -> exception.getMessage).asJson))
           }
         }
       }
@@ -88,8 +87,8 @@ object ProviderConfigController extends BaseController {
           } else {
             val result = for {
               providerEither <- ProviderDetailsRepository.getFullProviderDetails(providerId)
-              fullProviderDetails <- IO.fromEither(providerEither).adaptError {
-                case ex => new RuntimeException(s"Provider not found: ${ex.getMessage}")
+              fullProviderDetails <- IO.fromEither(providerEither).adaptError { case ex =>
+                new RuntimeException(s"Provider not found: ${ex.getMessage}")
               }
 
               // Validate used specs against allowed specs

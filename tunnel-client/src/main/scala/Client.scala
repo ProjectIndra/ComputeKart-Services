@@ -4,46 +4,73 @@ import java.net.Socket
 import java.io._
 
 object TunnelClient {
-  def startTunnel(VerificationToken: String, host: String, port: Int): Unit = {
-    val tunnelSocket = new Socket("34.56.109.189", 9000)
+  def startTunnel(verificationToken: String, host: String, port: Int): Unit = {
+    val tunnelSocket = new Socket("34.29.118.22", 9000)
 
     val tunnelIn = new BufferedReader(new InputStreamReader(tunnelSocket.getInputStream))
     val tunnelOut = new PrintWriter(tunnelSocket.getOutputStream, true)
 
-    // Send both tunnelId and sessionToken, separated by a comma
-    tunnelOut.println(s"$VerificationToken")
-    println(s"Registered tunnel with verification token: $VerificationToken")
+    // Send verification token
+    tunnelOut.println(verificationToken)
+    println(s"[Client] Sent verification token: $verificationToken")
 
-    while (true) {
-      try {
-        val tunnelRequest = tunnelIn.readLine()
-        println(s"Received from server: $tunnelRequest")
+    // Wait for server response
+    val response = tunnelIn.readLine()
+    println(s"[Client] Server response: $response")
 
-        val localSocket = new Socket(host, port)
-        val localIn = new BufferedReader(new InputStreamReader(localSocket.getInputStream))
-        val localOut = new PrintWriter(localSocket.getOutputStream, true)
+    if (response == "SUCCESS") {
+      println("[Client] Tunnel registration successful")
 
-        localOut.println("GET / HTTP/1.1")
-        localOut.println(s"Host: ${host}:${port}")
-        localOut.println("")
+      while (true) {
+        try {
+          println("[Client] Waiting for tunnel request...")
 
-        val responseBuilder = new StringBuilder
-        var line: String = null
-        while ({ line = localIn.readLine(); line != null }) {
-          responseBuilder.append(line + "\n")
+          val requestBuilder = new StringBuilder()
+          var line: String = null
+
+          // Read full request headers from server
+          while ({ line = tunnelIn.readLine(); line != null && line.nonEmpty }) {
+            requestBuilder.append(line).append("\r\n")
+          }
+
+          if (requestBuilder.isEmpty) {
+            println("[Client] Received empty request, skipping...")
+            Thread.sleep(500)
+          } else {
+            val fullRequest = requestBuilder.toString() + "\r\n"
+            println(s"[Client] Received request:\n$fullRequest")
+
+            val localSocket = new Socket(host, port)
+            val localIn = new BufferedReader(new InputStreamReader(localSocket.getInputStream))
+            val localOut = new PrintWriter(localSocket.getOutputStream, true)
+
+            // Forward to local service
+            localOut.print(fullRequest)
+            localOut.flush()
+
+            // Read full response from local service
+            val localResponseBuilder = new StringBuilder()
+            while ({ line = localIn.readLine(); line != null }) {
+              localResponseBuilder.append(line).append("\r\n")
+            }
+
+            val localResponse = localResponseBuilder.toString()
+            println(s"[Client] Sending response back to server:\n$localResponse")
+
+            tunnelOut.print(localResponse)
+            tunnelOut.flush()
+
+            localSocket.close()
+          }
+        } catch {
+          case e: Exception =>
+            println(s"[Client] Error: ${e.getMessage}")
+            Thread.sleep(1000)
         }
-
-        val fullResponse = responseBuilder.toString()
-        println(s"Forwarded full response:\n$fullResponse")
-
-        tunnelOut.println(fullResponse)
-
-        localSocket.close()
-      } catch {
-        case e: Exception =>
-          println(s"Error: ${e.getMessage}")
-          Thread.sleep(1000)
       }
+    } else {
+      println(s"[Client] Tunnel registration failed: $response")
+      tunnelSocket.close()
     }
   }
 }
