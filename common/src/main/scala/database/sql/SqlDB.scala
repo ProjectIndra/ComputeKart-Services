@@ -10,6 +10,7 @@ import cli.models.CliModel
 import vms.models.{VmDetailsModel, VmStatusModel, WireguardConnectionModel}
 import providers.models.{ProviderConfModel, ProviderModel}
 import tunnels.models.TunnelModel
+import utils.models.TempTokenModel
 
 object SqlDB {
   // Load configuration
@@ -44,7 +45,8 @@ object SqlDB {
       WireguardConnectionModel.createWireguardConnectionTable(),
       ProviderConfModel.createProviderConfTable(),
       ProviderModel.createProviderTable(),
-      TunnelModel.createTunnelTable()
+      TunnelModel.createTunnelTable(),
+      TempTokenModel.createTempTokenModel()
     )
 
     tasks.parSequence_.void
