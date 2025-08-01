@@ -13,6 +13,9 @@ import java.util.UUID
 import middleware.BaseController
 import utils.TempTokenTransaction._
 import utils.models.TempTokenModel._
+import tunnels.TunnelDetailsRepository
+import tunnels.TunnelDetails
+import users.UserDetailsRepository.getClientDetails
 
 case class ProviderRequest(
   providerVerificationToken: String,
@@ -117,15 +120,36 @@ object ProviderTokenController extends BaseController {
       providerRequest.providerAllowedNetworks
     )
 
-    val createProviderDetailsIO = createProviderDetails(providerWholeDB)
+    // Get username from the userId
+    val usernameIO = getClientDetails(userId).flatMap {
+      case Right(details) => IO.pure(details.username)
+      case Left(error)    => IO.raiseError(new RuntimeException(s"Failed to retrieve user details: ${error.getMessage}"))
+    }
 
-    onComplete(createProviderDetailsIO.unsafeToFuture()) {
-      case scala.util.Success(Right(_)) =>
-        complete((200, Map("management_server_verification_token" -> managementServerVerificationToken).asJson))
-      case scala.util.Success(Left(error)) =>
-        complete((500, Map("error" -> s"Failed to create provider details: ${error.getMessage}").asJson))
+    // Create provider details and tunnel
+    val resultIO = for {
+      username <- usernameIO
+      _ <- createProviderDetails(providerWholeDB)
+      sessionToken <- TunnelDetailsRepository.createNewTunnel(
+        TunnelDetails(
+          userId = userId,
+          username = username
+        )
+      ).flatMap {
+        case Right(output) => IO.pure(output)
+        case Left(error)   => IO.raiseError(new RuntimeException(s"Failed to create tunnel: ${error.getMessage}"))
+      }
+    } yield (managementServerVerificationToken, sessionToken)
+
+    // Handle the result
+    onComplete(resultIO.unsafeToFuture()) {
+      case scala.util.Success((managementToken, sessionToken)) =>
+        complete((200, Map(
+          "management_server_verification_token" -> managementToken,
+          "tunnel_server_verification_token" -> sessionToken
+        ).asJson))
       case scala.util.Failure(ex) =>
-        complete((500, Map("error" -> s"Unexpected error: ${ex.getMessage}").asJson))
+        complete((500, Map("error" -> s"Failed to handle new provider: ${ex.getMessage}").asJson))
     }
   }
 

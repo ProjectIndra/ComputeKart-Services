@@ -112,7 +112,7 @@ object ProviderDetailsRepository {
   def getProviderConf(providerId: String): IO[Either[Throwable, ProviderConf]] = {
     val query =
       sql"""
-      SELECT provider_id, provider_allowed_ram, provider_allowed_vcpu, provider_allowed_storage, provider_allowed_vms, provider_allowed_networks
+      SELECT provider_allowed_ram, provider_allowed_vcpu, provider_allowed_storage, provider_allowed_vms, provider_allowed_networks
       FROM provider_conf
       WHERE provider_id = $providerId
     """.query[ProviderConf].option
