@@ -2,29 +2,29 @@ package providers
 
 import cats.effect.IO
 import doobie.implicits._
-import doobie.util.transactor.Transactor
 import main.SqlDB
 
-import vms.VmDetailsRepository
-import users.UserDetailsRepository
-
 case class FullProviderDetails(
-  userId: String,
   providerId: String,
   providerName: String,
   providerStatus: String,
-  providerRamCapacity: String,
-  providerVcpuCapacity: String,
-  providerStorageCapacity: String,
-  providerUsedRam: Option[String],
-  providerUsedVcpu: Option[String],
-  providerUsedStorage: Option[String],
-  providerUsedVms: Option[String],
-  providerUsedNetworks: Option[String],
-  providerRating: Float,
+  providerRamCapacity: Int,
+  providerVcpuCapacity: Int,
+  providerStorageCapacity: Int,
   providerUrl: String,
-  managementServerVerificationToken: Option[String]
+  managementServerVerificationToken: Option[String],
+  providerAllowedRam: Int,
+  providerAllowedVcpu: Int,
+  providerAllowedStorage: Int,
+  providerAllowedVms: Int,
+  providerAllowedNetworks: Int,
+  providerUsedRam: Option[Int],
+  providerUsedVcpu: Option[Int],
+  providerUsedStorage: Option[Int],
+  providerUsedVms: Option[Int],
+  providerUsedNetworks: Option[Int]
 )
+
 case class ProviderDetails(
   providerId: String,
   providerUrl: String,
@@ -44,7 +44,7 @@ case class ProviderConf(
 
 object ProviderDetailsRepository {
 
-  def getProvidersList(userId: String): IO[List[ProviderDetails]] = {
+  def getProvidersList(userId: String): IO[Either[Throwable, List[ProviderDetails]]] = {
     val query =
       sql"""
       SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
@@ -52,14 +52,18 @@ object ProviderDetailsRepository {
       WHERE user_id = $userId
     """.query[ProviderDetails].to[List]
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(providers) => providers
-        case Left(e) =>
-          println(s"Error fetching providers list: ${e.getMessage}")
-          List.empty[ProviderDetails]
-      }
-    }
+    SqlDB.runQuery(query, "Get Providers List")
+  }
+
+  def getProvidersListFiltered(userId: String, providerName: String): IO[Either[Throwable, List[ProviderDetails]]] = {
+    val query =
+      sql"""
+      SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
+      FROM provider_details
+      WHERE user_id = $userId AND provider_name LIKE %$providerName%
+    """.query[ProviderDetails].to[List]
+
+    SqlDB.runQuery(query, "Get Providers List Filtered")
   }
 
   def canCreateVm(
@@ -70,7 +74,9 @@ object ProviderDetailsRepository {
   ): IO[Either[String, Boolean]] = {
     for {
       providerDetails <- fetchProviderDetails(providerId)
-      provider <- IO.fromOption(providerDetails)(new RuntimeException("Provider not found"))
+      provider <- IO.fromEither(providerDetails).adaptError { case _ =>
+        new RuntimeException("Provider not found")
+      }
       _ <- IO.raiseWhen(provider.providerStatus != "active")(
         new RuntimeException("Provider is not active")
       )
@@ -91,7 +97,7 @@ object ProviderDetailsRepository {
       Left(e.getMessage)
   }
 
-  def getProvidersByUserId(userId: String): IO[List[ProviderDetails]] = {
+  def getProvidersByUserId(userId: String): IO[Either[Throwable, List[ProviderDetails]]] = {
     val query =
       sql"""
       SELECT provider_id, provider_name, user_id, provider_type, provider_rating
@@ -99,17 +105,10 @@ object ProviderDetailsRepository {
       WHERE user_id = $userId
     """.query[ProviderDetails].to[List]
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(providers) => providers
-        case Left(e) =>
-          println(s"Error fetching providers by user ID: ${e.getMessage}")
-          List.empty[ProviderDetails]
-      }
-    }
+    SqlDB.runQuery(query, "Get Providers By User ID")
   }
 
-  def getProviderConf(providerId: String): IO[Option[ProviderConf]] = {
+  def getProviderConf(providerId: String): IO[Either[Throwable, ProviderConf]] = {
     val query =
       sql"""
       SELECT provider_id, provider_allowed_ram, provider_allowed_vcpu, provider_allowed_storage, provider_allowed_vms, provider_allowed_networks
@@ -117,17 +116,10 @@ object ProviderDetailsRepository {
       WHERE provider_id = $providerId
     """.query[ProviderConf].option
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(conf) => conf
-        case Left(e) =>
-          println(s"Error fetching provider configuration: ${e.getMessage}")
-          None
-      }
-    }
+    SqlDB.runQueryEither(query, "Get Provider Configuration")
   }
 
-  def getProviderByToken(managementServerVerificationToken: String): IO[Option[ProviderDetails]] = {
+  def getProviderByToken(managementServerVerificationToken: String): IO[Either[Throwable, ProviderDetails]] = {
     val query =
       sql"""
       SELECT provider_id, provider_name, provider_status, provider_ram_capacity, provider_vcpu_capacity, provider_storage_capacity, provider_url, management_server_verification_token
@@ -135,14 +127,7 @@ object ProviderDetailsRepository {
       WHERE management_server_verification_token = $managementServerVerificationToken
     """.query[ProviderDetails].option
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(provider) => provider
-        case Left(e) =>
-          println(s"Error fetching provider by token: ${e.getMessage}")
-          None
-      }
-    }
+    SqlDB.runQueryEither(query, "Get Provider By Token")
   }
 
   def updateProviderConf(
@@ -152,7 +137,7 @@ object ProviderDetailsRepository {
     providerAllowedStorage: Int,
     providerAllowedVms: Int,
     providerAllowedNetworks: Int
-  ): IO[Either[String, Unit]] = {
+  ): IO[Either[Throwable, Unit]] = {
     val query =
       sql"""
         UPDATE provider_conf
@@ -165,14 +150,7 @@ object ProviderDetailsRepository {
         WHERE provider_id = $providerId
       """.update.run
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(_) => Right(())
-        case Left(e) =>
-          println(s"Error updating provider configuration: ${e.getMessage}")
-          Left(s"Error updating provider configuration: ${e.getMessage}")
-      }
-    }
+    SqlDB.runUpdateQuery(query, "Update Provider Configuration")
   }
 
   def updateProviderDetails(
@@ -183,7 +161,7 @@ object ProviderDetailsRepository {
     providerUrl: String,
     providerStatus: String,
     managementServerVerificationToken: String
-  ): IO[Either[String, Unit]] = {
+  ): IO[Either[Throwable, Unit]] = {
     val query =
       sql"""
         UPDATE provider_details
@@ -197,14 +175,7 @@ object ProviderDetailsRepository {
         WHERE provider_id = $providerId
       """.update.run
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(_) => Right(())
-        case Left(e) =>
-          println(s"Error updating provider details: ${e.getMessage}")
-          Left(s"Error updating provider details: ${e.getMessage}")
-      }
-    }
+    SqlDB.runUpdateQuery(query, "Update Provider Details")
   }
 
   def insertProviderDetails(
@@ -216,7 +187,7 @@ object ProviderDetailsRepository {
     providerStorageCapacity: Int,
     providerUrl: String,
     managementServerVerificationToken: String
-  ): IO[Either[String, Unit]] = {
+  ): IO[Either[Throwable, Unit]] = {
     val query =
       sql"""
         INSERT INTO provider_details (
@@ -241,15 +212,9 @@ object ProviderDetailsRepository {
         )
       """.update.run
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(_) => Right(())
-        case Left(e) =>
-          println(s"Error inserting provider details: ${e.getMessage}")
-          Left(s"Error inserting provider details: ${e.getMessage}")
-      }
-    }
+    SqlDB.runUpdateQuery(query, "Insert Provider Details")
   }
+
   def insertProviderConf(
     providerId: String,
     providerAllowedRam: Int,
@@ -257,7 +222,7 @@ object ProviderDetailsRepository {
     providerAllowedStorage: Int,
     providerAllowedVms: Int,
     providerAllowedNetworks: Int
-  ): IO[Either[String, Unit]] = {
+  ): IO[Either[Throwable, Unit]] = {
     val query =
       sql"""
         INSERT INTO provider_conf (
@@ -278,242 +243,49 @@ object ProviderDetailsRepository {
         )
       """.update.run
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(_) => Right(())
-        case Left(e) =>
-          println(s"Error inserting provider configuration: ${e.getMessage}")
-          Left(s"Error inserting provider configuration: ${e.getMessage}")
-      }
-    }
+    SqlDB.runUpdateQuery(query, "Insert Provider Configuration")
   }
 
-  def fetchProviderDetails(providerId: String): IO[Option[ProviderDetails]] = {
+  def fetchProviderDetails(providerId: String): IO[Either[Throwable, ProviderDetails]] = {
     val query =
       sql"""
           SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
-          FROM provider
+          FROM provider_details
           WHERE provider_id = $providerId
           LIMIT 1
-      """.query[(String, String, String, String, String, String)].option
+      """.query[ProviderDetails].option
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(Some((id, providerUrl, verificationToken, providerName, providerUserId, providerStatus))) =>
-          Some(ProviderDetails(id, providerUrl, verificationToken, providerName, providerUserId, providerStatus))
-        case Right(None) => None
-        case Left(e) =>
-          println(s"Error fetching provider details: ${e.getMessage}")
-          None
-      }
-    }
+    SqlDB.runQueryEither(query, "Fetch Provider Details")
   }
 
-  def fetchFullProviderDetails(providerId: String): IO[Option[FullProviderDetails]] = {
+  def getFullProviderDetails(providerId: String): IO[Either[Throwable, FullProviderDetails]] = {
     val query =
       sql"""
-          SELECT user_id, provider_id, provider_name, provider_status, provider_ram_capacity, provider_vcpu_capacity,
-                 provider_storage_capacity, provider_used_ram, provider_used_vcpu, provider_used_storage, provider_used_vms,
-                 provider_used_networks, provider_rating, provider_url, management_server_verification_token
-          FROM provider
-          WHERE provider_id = $providerId
-          LIMIT 1
-      """
-        .query[
-          (
-            String,
-            String,
-            String,
-            String,
-            String,
-            String,
-            String,
-            Option[String],
-            Option[String],
-            Option[String],
-            Option[String],
-            Option[String],
-            Float,
-            String,
-            Option[String]
-          )
-        ]
-        .option
+        SELECT
+          pd.provider_id,
+          pd.provider_name,
+          pd.provider_status,
+          pd.provider_ram_capacity,
+          pd.provider_vcpu_capacity,
+          pd.provider_storage_capacity,
+          pd.provider_url,
+          pd.management_server_verification_token,
+          pc.provider_allowed_ram,
+          pc.provider_allowed_vcpu,
+          pc.provider_allowed_storage,
+          pc.provider_allowed_vms,
+          pc.provider_allowed_networks,
+          ps.provider_used_ram,
+          ps.provider_used_vcpu,
+          ps.provider_used_storage,
+          ps.provider_used_vms,
+          ps.provider_used_networks
+        FROM provider_details pd
+        LEFT JOIN provider_conf pc ON pd.provider_id = pc.provider_id
+        LEFT JOIN provider_stats ps ON pd.provider_id = ps.provider_id
+        WHERE pd.provider_id = $providerId
+      """.query[FullProviderDetails].option
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(
-              Some(
-                (
-                  userId,
-                  id,
-                  name,
-                  status,
-                  ramCapacity,
-                  vcpuCapacity,
-                  storageCapacity,
-                  usedRam,
-                  usedVcpu,
-                  usedStorage,
-                  usedVms,
-                  usedNetworks,
-                  rating,
-                  url,
-                  verificationToken
-                )
-              )
-            ) =>
-          Some(
-            FullProviderDetails(
-              userId,
-              id,
-              name,
-              status,
-              ramCapacity,
-              vcpuCapacity,
-              storageCapacity,
-              usedRam,
-              usedVcpu,
-              usedStorage,
-              usedVms,
-              usedNetworks,
-              rating,
-              url,
-              verificationToken
-            )
-          )
-        case Right(None) => None
-        case Left(e) =>
-          println(s"Error fetching full provider details: ${e.getMessage}")
-          None
-      }
-    }
-  }
-
-  def getProviderUrlAndToken(providerId: String): IO[Either[String, (String, String)]] = {
-    fetchProviderDetails(providerId).map {
-      case Some(providerDetails) =>
-        Right((providerDetails.providerUrl, providerDetails.verificationToken))
-      case None =>
-        Left(s"Provider with ID $providerId not found")
-    }
-  }
-
-  def getProviderDetails(providerId: String): IO[Either[String, ProviderDetails]] = {
-    fetchProviderDetails(providerId).map {
-      case Some(providerDetails) =>
-        Right(providerDetails)
-      case None =>
-        Left(s"Provider with ID $providerId not found")
-    }
-  }
-
-  def getActiveProviders: IO[List[ProviderDetails]] = {
-    val query =
-      sql"""
-          SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
-          FROM provider
-          WHERE provider_status = 'active'
-      """.query[(String, String, String, String, String, String)].to[List]
-
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(providers) =>
-          providers.map { case (id, providerUrl, verificationToken, providerName, providerUserId, providerStatus) =>
-            ProviderDetails(id, providerUrl, verificationToken, providerName, providerUserId, providerStatus)
-          }
-        case Left(e) =>
-          println(s"Error fetching active providers: ${e.getMessage}")
-          List.empty[ProviderDetails]
-      }
-    }
-  }
-
-  def getProviderDetailsForUser(userId: String): IO[List[ProviderDetails]] = {
-    val query =
-      sql"""
-          SELECT provider_id, provider_url, management_server_verification_token, provider_name, user_id, provider_status
-          FROM provider
-          WHERE user_id = $userId
-      """.query[(String, String, String, String, String, String)].to[List]
-
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(providers) =>
-          providers.map { case (id, providerUrl, verificationToken, providerName, providerUserId, providerStatus) =>
-            ProviderDetails(id, providerUrl, verificationToken, providerName, providerUserId, providerStatus)
-          }
-        case Left(e) =>
-          println(s"Error fetching provider details for user $userId: ${e.getMessage}")
-          List.empty[ProviderDetails]
-      }
-    }
-  }
-
-  def getProviderConfDetails(providerId: String): IO[Option[ProviderConf]] = {
-    val query =
-      sql"""
-              SELECT provider_allowed_ram, provider_allowed_vcpu, provider_allowed_storage, provider_allowed_vms, provider_allowed_networks
-              FROM provider_conf
-              WHERE provider_id = $providerId
-      """.query[(Int, Int, Int, Int, Int)].option
-
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(Some((allowedRam, allowedVcpu, allowedStorage, allowedVms, allowedNetworks))) =>
-          Some(
-            ProviderConf(
-              providerAllowedRam = allowedRam,
-              providerAllowedVcpu = allowedVcpu,
-              providerAllowedStorage = allowedStorage,
-              providerAllowedVms = allowedVms,
-              providerAllowedNetworks = allowedNetworks
-            )
-          )
-        case Right(None) =>
-          None
-        case Left(e) =>
-          println(s"Error fetching provider configuration details: ${e.getMessage}")
-          None
-      }
-    }
-  }
-
-  def getProviderClientsDetails(providerUserId: String): IO[Either[String, List[Map[String, Any]]]] = {
-    for {
-      vmClientsResult <- VmDetailsRepository.getVmClients(providerUserId)
-      vmClients <- IO.fromEither(vmClientsResult.left.map(e => new RuntimeException(s"Error fetching VM clients: ${e.getMessage}")))
-      clientDetails <- vmClients.foldLeft(IO.pure(List.empty[Map[String, Any]])) { (accIO, vmClient) =>
-        val (clientUserId, vmId) = vmClient
-
-        for {
-          acc <- accIO
-          isActiveResult <- VmDetailsRepository.isVmActive(vmId, clientUserId)
-          isActive <- IO.fromEither(isActiveResult.left.map(e => new RuntimeException(s"Error checking VM active status: ${e.getMessage}")))
-          clientDetails <-
-            if (isActive) {
-              UserDetailsRepository.getClientDetails(clientUserId).map {
-                case Right(Some(details)) => Some(details)
-                case _ => None
-              }
-            } else IO.pure(None)
-        } yield {
-          clientDetails match {
-            case Some(details) if !acc.exists(_.get("user_id") == Some(clientUserId)) =>
-              acc :+ Map(
-                "user_id" -> details.userId,
-                "name" -> (details.firstName + " " + details.lastName),
-                "email" -> details.email
-              )
-            case _ => acc
-          }
-        }
-      }
-    } yield Right(clientDetails)
-  }.attempt.map {
-    case Right(result) => result
-    case Left(e: Throwable) =>
-      println(s"Error fetching provider client details: ${e.getMessage}")
-      Left(s"Error fetching provider client details: ${e.getMessage}")
+    SqlDB.runQueryEither(query, "Get Full Provider Details")
   }
 }

@@ -10,7 +10,6 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.{Encoder, Json}
 
 import middleware.BaseController
-
 import providers.ProviderDetailsRepository
 import vms.VmDetailsRepository
 import users.UserDetailsRepository
@@ -26,9 +25,9 @@ object ProviderClientDetailsController extends BaseController {
   }
 
   def providerClientDetails: Route = path("providerClientDetails") {
-    post {
-      entity(as[Map[String, String]]) { request =>
-        val userId = request.get("user_id")
+    get {
+      uiLoginRequired { user =>
+        val userId = user.get("user_id")
 
         if (userId.isEmpty) {
           complete((400, Map("error" -> "User ID is required").asJson))
@@ -38,7 +37,7 @@ object ProviderClientDetailsController extends BaseController {
             activeClients <- vmClients match {
               case Right(vmClientList) =>
                 vmClientList.foldLeft(IO.pure(List.empty[ClientDetails])) { (accIO, vmClient) =>
-                  val (clientUserId, vmId) = vmClient
+                  val (clientUserId, vmId, _) = vmClient
 
                   for {
                     acc <- accIO
@@ -46,11 +45,11 @@ object ProviderClientDetailsController extends BaseController {
                     clientDetails <- isActive match {
                       case Right(true) =>
                         UserDetailsRepository.getClientDetails(clientUserId).map {
-                          case Right(Some(details)) =>
+                          case Right(details: users.UserDetails) =>
                             Some(
                               ClientDetails(
                                 user_id = details.userId,
-                                name = s"${details.firstName} ${details.lastName}",
+                                name = s"${details.username}",
                                 email = details.email
                               )
                             )
@@ -72,8 +71,10 @@ object ProviderClientDetailsController extends BaseController {
           } yield activeClients
 
           onComplete(result.attempt.unsafeToFuture()) {
-            case scala.util.Success(clientDetails) =>
-              complete((200, Map("client_details" -> ClientDetails).asJson))
+            case scala.util.Success(Right(clientDetails)) =>
+              complete((200, Json.obj("client_details" -> clientDetails.asJson)))
+            case scala.util.Success(Left(error)) =>
+              complete((500, Map("error" -> error.getMessage).asJson))
             case scala.util.Failure(exception) =>
               complete((500, Map("error" -> exception.getMessage).asJson))
           }

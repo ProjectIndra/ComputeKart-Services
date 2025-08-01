@@ -12,6 +12,10 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
+import cats.effect.unsafe.implicits.global
+
+import tunnels.TunnelDetailsRepository._
+
 object TunnelServer {
 
   val tunnelRegistry = TrieMap[String, Socket]()
@@ -84,6 +88,9 @@ object TunnelServer {
     }
   }
 
+  /** Starts a listener for tunnel clients on port 9000. It accepts connections, reads the tunnel ID and session token, verifies the session token, and registers the tunnel if valid.
+    */
+
   def startTunnelListener(): Unit = {
     val serverSocket = new ServerSocket(9000)
     println("Listening for tunnel clients on port 9000...")
@@ -91,9 +98,22 @@ object TunnelServer {
     while (true) {
       val clientSocket = serverSocket.accept()
       val reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream))
-      val tunnelId = reader.readLine().trim
-      println(s"Registered new tunnel: $tunnelId")
-      tunnelRegistry.put(tunnelId, clientSocket)
+      val line = reader.readLine().trim
+      val sessionToken = line
+
+      // Execute the IO operation to verify the session token
+      verifyTunnelToken(sessionToken).unsafeRunAsync {
+        case Right(Some(tunnelDetails)) =>
+          val tunnelAndUsername = s"${tunnelDetails.tunnelNo}.${tunnelDetails.username}"
+          tunnelRegistry.put(tunnelAndUsername, clientSocket)
+          println(s"Tunnel registered: $tunnelAndUsername")
+        case Right(None) =>
+          println("Invalid session token. Closing client connection.")
+          clientSocket.close()
+        case Left(error) =>
+          println(s"Error verifying session token: ${error.getMessage}")
+          clientSocket.close()
+      }
     }
   }
 }

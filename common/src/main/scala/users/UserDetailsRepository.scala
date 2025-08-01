@@ -7,35 +7,29 @@ import main.SqlDB
 case class UserDetails(
   userId: String,
   email: String,
-  firstName: String,
-  lastName: String
+  username: String
 )
 
 object UserDetailsRepository {
 
-  def getClientDetails(clientUserId: String): IO[Either[Throwable, Option[UserDetails]]] = {
+  /** Retrieves client details by user ID. */
+  def getClientDetails(clientUserId: String): IO[Either[Throwable, UserDetails]] = {
     val query =
       sql"""
-        SELECT user_id, email, first_name, last_name
+        SELECT user_id, email, username
         FROM users
         WHERE user_id = $clientUserId
       """.query[UserDetails].option
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(clientDetails) => Right(clientDetails)
-        case Left(e) =>
-          println(s"Error fetching client details for user $clientUserId: ${e.getMessage}")
-          Left(e)
-      }
-    }
+    SqlDB.runQueryEither(query, "Get Client Details")
   }
 
+  /** Updates user details (profile name and profile image). */
   def updateUserDetails(
     userId: String,
     profileName: Option[String],
     profileImage: Option[String]
-  ): IO[Int] = {
+  ): IO[Either[Throwable, Unit]] = {
     val query =
       sql"""
         UPDATE users
@@ -43,8 +37,6 @@ object UserDetailsRepository {
         WHERE user_id = $userId
       """.update.run
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa)
-    }
+    SqlDB.runUpdateQuery(query, "Update User Details")
   }
 }

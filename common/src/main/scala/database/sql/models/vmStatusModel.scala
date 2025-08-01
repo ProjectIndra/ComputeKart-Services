@@ -23,8 +23,7 @@ object VmStatusModel {
       """.update.run
 
     // Use the transactor properly
-    SqlDB.transactor.use { xa =>
-      createTableQuery.transact(xa)
-    }
+    SqlDB.runSchemaQuery(createTableQuery, "creating tables")
+
   }
 }

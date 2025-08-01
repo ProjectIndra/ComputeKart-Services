@@ -17,7 +17,7 @@ object CliDetailsRepository {
         WHERE cli_session_token = $token AND cli_status = true
       """.query[CliSessionDetails].option
 
-    SqlDB.transactor.use(xa => query.transact(xa))
+    query.transact(SqlDB.transactor)
   }
 
   def getAllCliSessionDetails(userId: String): IO[List[CliSessionDetails]] = {
@@ -28,7 +28,7 @@ object CliDetailsRepository {
         WHERE user_id = $userId AND cli_status = true
       """.query[CliSessionDetails].to[List]
 
-    SqlDB.transactor.use(xa => query.transact(xa))
+    query.transact(SqlDB.transactor)
   }
 
   def deleteCliSession(userId: String, cliId: String): IO[Int] = {
@@ -39,7 +39,7 @@ object CliDetailsRepository {
         WHERE user_id = $userId AND cli_id = $cliId
       """.update.run
 
-    SqlDB.transactor.use(xa => updateQuery.transact(xa))
+    updateQuery.transact(SqlDB.transactor)
   }
   def updateCliVerificationToken(userId: String, cliVerificationToken: String): IO[Int] = {
     val query =
@@ -49,7 +49,7 @@ object CliDetailsRepository {
         WHERE user_id = $userId
       """.update.run
 
-    SqlDB.transactor.use(xa => query.transact(xa))
+    query.transact(SqlDB.transactor)
   }
 
   def verifyCliToken(cliVerificationToken: String): IO[Option[String]] = {
@@ -60,7 +60,7 @@ object CliDetailsRepository {
         WHERE cli_verification_token = $cliVerificationToken
       """.query[String].option
 
-    SqlDB.transactor.use(xa => query.transact(xa))
+    query.transact(SqlDB.transactor)
   }
 
   def insertCliSession(
@@ -78,7 +78,7 @@ object CliDetailsRepository {
         VALUES ($userId, $cliId, $wireguardEndpoint, $wireguardPublicKey, true, $sessionToken, $sessionExpiryTime, $cliVerificationToken)
       """.update.run
 
-    SqlDB.transactor.use(xa => query.transact(xa))
+    query.transact(SqlDB.transactor)
   }
 
 }

@@ -23,6 +23,8 @@ object RegisterController {
   def register: Route = path("register") {
     post {
       entity(as[RegisterRequest]) { request =>
+        println("Register endpoint hit with request: " + request)
+
         // Validate input
         if (!request.email.contains("@")) {
           complete((400, ErrorResponse("Invalid email").asJson))
@@ -41,7 +43,7 @@ object RegisterController {
               VALUES ($userId, ${request.username}, ${request.email}, $hashedPassword, $encryptedToken)
             """.update.run
 
-          val result = SqlDB.transactor.use(xa => insertQuery.transact(xa)).unsafeToFuture()
+          val result = SqlDB.runUpdateQuery(insertQuery, "Error inserting user data").unsafeToFuture()
 
           onComplete(result) {
             case scala.util.Success(_) =>

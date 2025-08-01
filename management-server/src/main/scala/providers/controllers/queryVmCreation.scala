@@ -24,7 +24,7 @@ object QueryVmCreationController extends BaseController {
         if (providerId.isEmpty) {
           complete((400, Map("error" -> "Provider ID is required").asJson))
         } else {
-          val result = ProviderDetailsRepository.canCreateVm(providerId.get, vcpus, ram, storage)
+          val result: IO[Either[String, Boolean]] = ProviderDetailsRepository.canCreateVm(providerId.get, vcpus, ram, storage)
 
           onComplete(result.attempt.unsafeToFuture()) {
             case scala.util.Success(Right(Right(true))) =>
@@ -43,4 +43,3 @@ object QueryVmCreationController extends BaseController {
     }
   }
 }
-

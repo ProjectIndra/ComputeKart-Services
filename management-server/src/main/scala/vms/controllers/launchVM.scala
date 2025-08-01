@@ -32,7 +32,7 @@ object LaunchVmController extends BaseController {
           val result = for {
             // Query the provider to check if VM creation is possible
             providerDetails <- ProviderDetailsRepository.fetchProviderDetails(providerId.get)
-            provider <- IO.fromOption(providerDetails)(new RuntimeException("Provider not found"))
+            provider <- IO.fromEither(providerDetails.left.map(error => new RuntimeException(error.getMessage)))
             canCreate <- ProviderService.queryVmCreation(
               provider.providerUrl,
               provider.verificationToken,

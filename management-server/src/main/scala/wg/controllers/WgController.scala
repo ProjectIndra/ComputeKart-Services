@@ -31,13 +31,13 @@ object WgController extends BaseController {
           val result = for {
             // Fetch VM details
             vmDetails <- VmDetailsRepository.getVmDetailsByName(vmName.get, userId.get)
-            vmDetails<- IO.fromEither(vmDetails)
+            vmDetails <- IO.fromEither(vmDetails)
             vmId = vmDetails._1
             providerId = vmDetails._2
             internalVmName = vmDetails._3
 
             // Fetch provider details
-            providerDetails <- ProviderDetailsRepository.getProviderDetails(providerId)
+            providerDetails <- ProviderDetailsRepository.fetchProviderDetails(providerId)
             providerDetails <- IO.fromEither(providerDetails.left.map(new Exception(_)))
             providerUrl = providerDetails.providerUrl
             verificationToken = providerDetails.verificationToken

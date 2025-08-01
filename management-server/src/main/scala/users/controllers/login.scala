@@ -21,6 +21,7 @@ object LoginController {
   def login: Route = path("login") {
     post {
       entity(as[LoginRequest]) { request =>
+
         if (request.username_or_email.isEmpty || request.password.isEmpty) {
           complete((400, ErrorResponse("Username/email and password are required").asJson))
         } else {
@@ -31,10 +32,12 @@ object LoginController {
               WHERE username = ${request.username_or_email} OR email = ${request.username_or_email}
             """.query[(String, String, String, String)].option
 
-          val result = SqlDB.transactor.use(xa => query.transact(xa)).unsafeToFuture()
+          val result = SqlDB.runQuery(query, "Error fetching user details").unsafeToFuture()
+
+          println(s"[LoginController] Received login for: ${request.username_or_email} result: $result")
 
           onComplete(result) {
-            case scala.util.Success(Some((userId, username, email, hashedPassword))) =>
+            case scala.util.Success(Right(Some((userId, username, email, hashedPassword)))) =>
               if (CryptoUtils.verifyPassword(request.password, hashedPassword)) {
                 val token = CryptoUtils.encodeJwt(userId, username, email)
                 complete((200, LoginResponse("Login successful", token).asJson))
@@ -42,11 +45,14 @@ object LoginController {
                 complete((401, ErrorResponse("Invalid username/email or password").asJson))
               }
 
-            case scala.util.Success(None) =>
+            case scala.util.Success(Right(None)) =>
               complete((401, ErrorResponse("Invalid username/email or password").asJson))
 
-            case scala.util.Failure(ex) =>
+            case scala.util.Success(Left(ex)) =>
               complete((500, ErrorResponse("Database error: " + ex.getMessage).asJson))
+
+            case scala.util.Failure(ex) =>
+              complete((500, ErrorResponse("Unexpected error: " + ex.getMessage).asJson))
           }
         }
       }

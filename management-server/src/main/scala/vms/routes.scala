@@ -10,13 +10,13 @@ object VmsRoutes {
     concat(
       pathPrefix("vms") {
         concat(
-            LaunchVmController.launchVm,
-            VMDetailsController.allActiveVms,
-            VMDetailsController.allVms,
-            VMDetailsController.startVm,
-            VMDetailsController.stopVm,
-            VMDetailsController.removeVm,
-            VMDetailsController.forceRemoveVm
+          LaunchVmController.launchVm,
+          VMDetailsController.allActiveVms,
+          VMDetailsController.allVms,
+          VMDetailsController.startVm,
+          VMDetailsController.stopVm,
+          VMDetailsController.removeVm,
+          VMDetailsController.forceRemoveVm
         )
       }
     )

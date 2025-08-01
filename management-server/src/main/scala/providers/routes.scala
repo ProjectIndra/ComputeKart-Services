@@ -10,7 +10,8 @@ object ProvidersRoutes {
     concat(
       pathPrefix("providerServer") {
         concat(
-          VerifyProviderTokenController.verifyProviderToken,
+          ProviderTokenController.getProviderVerificationToken,
+          ProviderTokenController.verifyProviderToken,
           ProviderConfigController.getConfig
         )
       },
