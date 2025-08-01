@@ -105,20 +105,6 @@ object ProviderTokenController extends BaseController {
   private def handleNewProvider(providerRequest: ProviderRequest, userId: String): Route = {
     val newProviderId = UUID.randomUUID().toString
     val managementServerVerificationToken = UUID.randomUUID().toString
-    val providerWholeDB = ProviderWholeDB(
-      userId,
-      newProviderId,
-      providerRequest.providerRamCapacity,
-      providerRequest.providerVcpuCapacity,
-      providerRequest.providerStorageCapacity,
-      providerRequest.providerUrl,
-      managementServerVerificationToken,
-      providerRequest.providerAllowedRam,
-      providerRequest.providerAllowedVcpu,
-      providerRequest.providerAllowedStorage,
-      providerRequest.providerAllowedVms,
-      providerRequest.providerAllowedNetworks
-    )
 
     // Get username from the userId
     val usernameIO = getClientDetails(userId).flatMap {
@@ -126,20 +112,43 @@ object ProviderTokenController extends BaseController {
       case Left(error)    => IO.raiseError(new RuntimeException(s"Failed to retrieve user details: ${error.getMessage}"))
     }
 
-    // Create provider details and tunnel
+    // Modified flow: Create tunnel first, then provider details
     val resultIO = for {
       username <- usernameIO
-      _ <- createProviderDetails(providerWholeDB)
-      sessionToken <- TunnelDetailsRepository.createNewTunnel(
+      // Create tunnel first
+      tunnelInfo <- TunnelDetailsRepository.createNewTunnel(
         TunnelDetails(
           userId = userId,
           username = username
         )
       ).flatMap {
-        case Right(output) => IO.pure(output)
-        case Left(error)   => IO.raiseError(new RuntimeException(s"Failed to create tunnel: ${error.getMessage}"))
+        case Right((tunnelNo, sessionToken)) => IO.pure((tunnelNo, sessionToken))
+        case Left(error) => IO.raiseError(new RuntimeException(s"Failed to create tunnel: ${error.getMessage}"))
       }
-    } yield (managementServerVerificationToken, sessionToken)
+      
+      // Generate provider URL using tunnel information
+      providerUrl = s"${tunnelInfo._1}-${username}.computekart.com"
+      
+      // Create provider details with the generated URL
+      providerWholeDB = ProviderWholeDB(
+        userId = userId,
+        providerId = newProviderId,
+        providerRamCapacity = providerRequest.providerRamCapacity,
+        providerVcpuCapacity = providerRequest.providerVcpuCapacity,
+        providerStorageCapacity = providerRequest.providerStorageCapacity,
+        providerUrl = providerUrl,  // Using the generated URL
+        managementServerVerificationToken = managementServerVerificationToken,
+        providerAllowedRam = providerRequest.providerAllowedRam,
+        providerAllowedVcpu = providerRequest.providerAllowedVcpu,
+        providerAllowedStorage = providerRequest.providerAllowedStorage,
+        providerAllowedVms = providerRequest.providerAllowedVms,
+        providerAllowedNetworks = providerRequest.providerAllowedNetworks
+      )
+      
+      // Create provider details
+      _ <- createProviderDetails(providerWholeDB)
+      
+    } yield (managementServerVerificationToken, tunnelInfo._2)
 
     // Handle the result
     onComplete(resultIO.unsafeToFuture()) {
