@@ -27,12 +27,11 @@ object UserInfoController extends BaseController {
                 val result = UserDetailsRepository.getClientDetails(userId).unsafeToFuture()
 
                 onComplete(result) {
-                  case scala.util.Success(Right(Some(user))) =>
+                  case scala.util.Success(Right(user)) =>
                     complete((200, user.asJson))
-                  case scala.util.Success(Right(None)) =>
-                    complete((404, ErrorResponse("User not found").asJson))
                   case scala.util.Success(Left(error)) =>
                     complete((500, ErrorResponse("Database error: " + error.getMessage).asJson))
+                    complete((404, ErrorResponse("User not found").asJson))
                   case scala.util.Failure(ex) =>
                     complete((500, ErrorResponse("Unexpected error: " + ex.getMessage).asJson))
                 }
@@ -43,7 +42,6 @@ object UserInfoController extends BaseController {
           }
         }
       },
-
       path("updateUserDetails") {
         put {
           uiLoginRequired { request =>
@@ -58,8 +56,10 @@ object UserInfoController extends BaseController {
                     .unsafeToFuture()
 
                   onComplete(result) {
-                    case scala.util.Success(updatedRows) if updatedRows > 0 =>
+                    case scala.util.Success(Right(_)) =>
                       complete((200, UpdateUserResponse("User details updated successfully").asJson))
+                    case scala.util.Success(Left(error)) =>
+                      complete((500, ErrorResponse("Database error: " + error.getMessage).asJson))
                     case scala.util.Success(_) =>
                       complete((404, ErrorResponse("No changes made or user not found").asJson))
                     case scala.util.Failure(ex) =>

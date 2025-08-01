@@ -65,10 +65,10 @@ object VmCreationService {
   ): Either[String, String] = {
     val providerResponse = ProviderDetailsRepository.fetchProviderDetails(providerId).unsafeRunSync()
     providerResponse match {
-      case None => return Left("Provider not found")
-      case Some(provider) if provider.providerStatus != "active" =>
+      case Left(error) => return Left(s"Error fetching provider details: ${error.getMessage}")
+      case Right(provider) if provider.providerStatus != "active" =>
         return Left("Provider is not active")
-      case Some(provider) =>
+      case Right(provider) =>
         createVmAfterProviderVerification(provider, clientUserId, vcpus, ram, storage, vmImageType, generatedVmName, internalVmName, providerId)
     }
   }

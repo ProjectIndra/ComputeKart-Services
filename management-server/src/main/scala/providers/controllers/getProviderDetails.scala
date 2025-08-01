@@ -6,6 +6,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import io.circe.generic.auto._
 import io.circe.syntax._
+import io.circe.{Encoder, Json}
+import providers.ProviderDetails
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import providers.ProviderDetailsRepository
 
@@ -13,6 +15,29 @@ import middleware.BaseController
 
 object ProviderDetilsController extends BaseController {
 
+  // Implicit Encoders
+  implicit def eitherEncoder[A, B](implicit encodeA: Encoder[A], encodeB: Encoder[B]): Encoder[Either[A, B]] = Encoder.instance {
+    case Left(a)  => Json.obj("Left" -> encodeA(a))
+    case Right(b) => Json.obj("Right" -> encodeB(b))
+  }
+
+  // Implicit Encoder for Map[String, Either[Throwable, ProviderDetails]]
+  implicit val eitherThrowableProviderDetailsEncoder: Encoder[Either[Throwable, ProviderDetails]] = Encoder.instance {
+    case Left(error)  => Json.obj("error" -> Json.fromString(error.getMessage))
+    case Right(value) => Json.obj("data" -> value.asJson)
+  }
+
+  implicit val mapEncoder: Encoder[Map[String, Either[Throwable, ProviderDetails]]] = Encoder.encodeMap[String, Either[Throwable, ProviderDetails]]
+
+  // Implicit Encoder for Map[String, Either[Throwable, List[ProviderDetails]]]
+  implicit val eitherThrowableListProviderDetailsEncoder: Encoder[Either[Throwable, List[ProviderDetails]]] = Encoder.instance {
+    case Left(error)  => Json.obj("error" -> Json.fromString(error.getMessage))
+    case Right(value) => Json.obj("data" -> value.asJson)
+  }
+
+  implicit val mapListEncoder: Encoder[Map[String, Either[Throwable, List[ProviderDetails]]]] = Encoder.encodeMap[String, Either[Throwable, List[ProviderDetails]]]
+
+  // Route for fetching provider lists
   def providersLists: Route = path("lists") {
     get {
       uiLoginRequired { user =>
@@ -43,6 +68,7 @@ object ProviderDetilsController extends BaseController {
     }
   }
 
+  // Route for fetching provider details
   def providersDetails: Route = path("details") {
     post {
       uiLoginRequired { user =>
@@ -52,7 +78,7 @@ object ProviderDetilsController extends BaseController {
           if (providerId.isEmpty) {
             complete((400, Map("error" -> "Provider ID is required").asJson))
           } else {
-            val result = ProviderDetailsRepository.getProviderDetails(providerId.get)
+            val result = ProviderDetailsRepository.fetchProviderDetails(providerId.get)
 
             onComplete(result.attempt.unsafeToFuture()) {
               case scala.util.Success(Right(response)) =>

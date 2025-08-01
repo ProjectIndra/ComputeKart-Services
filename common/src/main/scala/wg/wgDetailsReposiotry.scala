@@ -2,17 +2,20 @@ package wg
 
 import cats.effect.IO
 import doobie.implicits._
-import doobie.util.transactor.Transactor
-import main.SqlDB
-import io.circe.syntax._
-import io.circe.generic.auto._
 import io.circe.Json
 import io.circe.syntax._
+import main.SqlDB
 
 object WgDetailsRepository {
 
-  def updateWireguardDetails(internalVmName: String, cliId: String, combinedInterfaceDetails: Map[String, Any]): IO[Unit] = {
+  /** Updates Wireguard details for a VM. */
+  def updateWireguardDetails(
+    internalVmName: String,
+    cliId: String,
+    combinedInterfaceDetails: Map[String, Any]
+  ): IO[Either[Throwable, Unit]] = {
 
+    // Convert the combined interface details to JSON
     val combinedInterfaceDetailsJson = combinedInterfaceDetails
       .map {
         case (key, value: String) => key -> Json.fromString(value)
@@ -23,6 +26,7 @@ object WgDetailsRepository {
       .asJson
       .noSpaces
 
+    // Define the query
     val query =
       sql"""
         UPDATE vm_details
@@ -30,13 +34,7 @@ object WgDetailsRepository {
         WHERE internal_vm_name = $internalVmName AND cli_id = $cliId
       """.update.run
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).attempt.map {
-        case Right(_) => ()
-        case Left(e) =>
-          println(s"Error updating Wireguard details: ${e.getMessage}")
-          throw new RuntimeException(e.getMessage)
-      }
-    }
+    // Use the helper function to execute the query
+    SqlDB.runUpdateQuery(query, "Update Wireguard Details")
   }
 }

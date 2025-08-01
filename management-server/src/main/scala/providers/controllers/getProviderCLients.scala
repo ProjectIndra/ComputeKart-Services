@@ -45,14 +45,14 @@ object ProviderClientDetailsController extends BaseController {
                     clientDetails <- isActive match {
                       case Right(true) =>
                         UserDetailsRepository.getClientDetails(clientUserId).map {
-                          case Right(Some(details)) =>
+                          case Right(details: users.UserDetails) =>
                             Some(
                               ClientDetails(
                                 user_id = details.userId,
                                 name = s"${details.username}",
                                 email = details.email
+                              )
                             )
-                          )
                           case _ => None
                         }
                       case _ => IO.pure(None)

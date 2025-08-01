@@ -37,7 +37,6 @@ object CliSessionController extends BaseController {
           }
         }
       },
-
       path("deleteCliSession") {
         delete {
           request.get("user_id") match {

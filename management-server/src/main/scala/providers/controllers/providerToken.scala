@@ -46,26 +46,26 @@ object ProviderTokenController extends BaseController {
   def getProviderVerificationToken: Route = path("getProviderVerificationToken") {
     post {
       uiLoginRequired { user =>
-        val userId = user.get("user_id")
+        val userIdOpt = user.get("user_id")
         val providerId = user.getOrElse("provider_id", "").toString
 
-        userId match {
-          case Some(id) =>
+        userIdOpt match {
+          case Some(userId) =>
             val token = UUID.randomUUID().toString
             val detailsMap = Map.empty[String, String]
-            val result = if (providerId.nonEmpty) {
-              createTempToken(token, id, detailsMap.asJson, Some(providerId)).unsafeToFuture()
+            val resultIO = if (providerId.nonEmpty) {
+              createTempToken(token, userId, detailsMap.asJson, Some(providerId))
             } else {
-              createTempToken(token, id, detailsMap.asJson).unsafeToFuture()
+              createTempToken(token, userId, detailsMap.asJson)
             }
 
-            onComplete(result) {
-              case scala.util.Success(updatedRows) if updatedRows > 0 =>
+            onComplete(resultIO.unsafeToFuture()) {
+              case scala.util.Success(Right(_)) =>
                 complete((200, Map("cli_verification_token" -> token).asJson))
-              case scala.util.Success(_) =>
-                complete((404, Map("error" -> "User not found").asJson))
+              case scala.util.Success(Left(error)) =>
+                complete((500, Map("error" -> s"Failed to create temp token: ${error.getMessage}").asJson))
               case scala.util.Failure(ex) =>
-                complete((500, Map("error" -> s"Database error: ${ex.getMessage}").asJson))
+                complete((500, Map("error" -> s"Unexpected error: ${ex.getMessage}").asJson))
             }
 
           case None =>
@@ -79,26 +79,26 @@ object ProviderTokenController extends BaseController {
     post {
       entity(as[ProviderRequest]) { providerRequest =>
         val providerVerificationToken = providerRequest.providerVerificationToken
-        val result = verifyTempTokenAndGetDetails(providerVerificationToken).unsafeToFuture()
+        val resultIO = verifyTempTokenAndGetDetails(providerVerificationToken)
 
-        onComplete(result) {
-          case scala.util.Success(Some((userId, None))) =>
-            handleNewProvider(providerRequest)
+        onComplete(resultIO.unsafeToFuture()) {
+          case scala.util.Success(Right((userId, None))) =>
+            handleNewProvider(providerRequest, userId)
 
-          case scala.util.Success(Some((userId, Some(providerId)))) =>
+          case scala.util.Success(Right((userId, Some(providerId)))) =>
             handleExistingProvider(providerRequest, providerId)
 
-          case scala.util.Success(None) =>
-            complete((400, Map("error" -> "Invalid or expired provider verification token").asJson))
+          case scala.util.Success(Left(error)) =>
+            complete((400, Map("error" -> s"Invalid or expired provider verification token: ${error.getMessage}").asJson))
 
           case scala.util.Failure(ex) =>
-            complete((500, Map("error" -> s"Database error: ${ex.getMessage}").asJson))
+            complete((500, Map("error" -> s"Unexpected error: ${ex.getMessage}").asJson))
         }
       }
     }
   }
 
-  private def handleNewProvider(providerRequest: ProviderRequest): Route = {
+  private def handleNewProvider(providerRequest: ProviderRequest, userId: String): Route = {
     val newProviderId = UUID.randomUUID().toString
     val managementServerVerificationToken = UUID.randomUUID().toString
     val providerWholeDB = ProviderWholeDB(
@@ -115,15 +115,15 @@ object ProviderTokenController extends BaseController {
       providerRequest.providerAllowedNetworks
     )
 
-    val createProviderDetailsIO = createProviderDetails(providerWholeDB).unsafeToFuture()
+    val createProviderDetailsIO = createProviderDetails(providerWholeDB)
 
-    onComplete(createProviderDetailsIO) {
+    onComplete(createProviderDetailsIO.unsafeToFuture()) {
       case scala.util.Success(Right(_)) =>
         complete((200, Map("management_server_verification_token" -> managementServerVerificationToken).asJson))
       case scala.util.Success(Left(error)) =>
-        complete((500, Map("error" -> s"Failed to create provider details: $error").asJson))
+        complete((500, Map("error" -> s"Failed to create provider details: ${error.getMessage}").asJson))
       case scala.util.Failure(ex) =>
-        complete((500, Map("error" -> s"Database error: ${ex.getMessage}").asJson))
+        complete((500, Map("error" -> s"Unexpected error: ${ex.getMessage}").asJson))
     }
   }
 
@@ -143,19 +143,19 @@ object ProviderTokenController extends BaseController {
       providerRequest.providerAllowedNetworks
     )
 
-    val updateProviderDetailsIO = updateProviderDetails(providerWholeDB).unsafeToFuture()
+    val updateProviderDetailsIO = updateProviderDetails(providerWholeDB)
 
-    onComplete(updateProviderDetailsIO) {
+    onComplete(updateProviderDetailsIO.unsafeToFuture()) {
       case scala.util.Success(Right(_)) =>
         complete((200, Map("management_server_verification_token" -> managementServerVerificationToken).asJson))
       case scala.util.Success(Left(error)) =>
-        complete((500, Map("error" -> s"Failed to update provider details: $error").asJson))
+        complete((500, Map("error" -> s"Failed to update provider details: ${error.getMessage}").asJson))
       case scala.util.Failure(ex) =>
-        complete((500, Map("error" -> s"Database error: ${ex.getMessage}").asJson))
+        complete((500, Map("error" -> s"Unexpected error: ${ex.getMessage}").asJson))
     }
   }
 
-  private def createProviderDetails(providerWholeDB: ProviderWholeDB): IO[Either[String, Unit]] = {
+  private def createProviderDetails(providerWholeDB: ProviderWholeDB): IO[Either[Throwable, Unit]] = {
     for {
       insertProvider <- ProviderDetailsRepository.insertProviderDetails(
         providerWholeDB.providerId,
@@ -181,7 +181,7 @@ object ProviderTokenController extends BaseController {
     } yield ()
   }
 
-  private def updateProviderDetails(providerWholeDB: ProviderWholeDB): IO[Either[String, Unit]] = {
+  private def updateProviderDetails(providerWholeDB: ProviderWholeDB): IO[Either[Throwable, Unit]] = {
     for {
       updateProvider <- ProviderDetailsRepository.updateProviderDetails(
         providerWholeDB.providerId,

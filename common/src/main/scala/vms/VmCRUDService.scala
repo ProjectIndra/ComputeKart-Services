@@ -13,10 +13,10 @@ object VmCrudService {
 
   def activateVm(providerId: String, vmId: String, userId: String): IO[Either[String, String]] = {
     for {
-      providerResult <- ProviderDetailsRepository.getProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
-      internalVmNameResult <- VmDetailsRepository.getInternalVmName(vmId, userId) // Returns IO[Either[String, String]]
-      internalVmName <- IO.fromEither(internalVmNameResult) // Unwraps the Either
-      provider <- IO.fromEither(providerResult.leftMap(new RuntimeException(_))) // Unwraps the Either to get the provider object
+      providerResult <- ProviderDetailsRepository.fetchProviderDetails(providerId)
+      internalVmNameResult <- VmDetailsRepository.getInternalVmName(vmId, userId)
+      internalVmName <- IO.fromEither(internalVmNameResult)
+      provider <- IO.fromEither(providerResult.leftMap(new RuntimeException(_)))
       _ <- IO.fromEither(
         NetworkService
           .ensureDefaultNetworkActive(
@@ -32,7 +32,7 @@ object VmCrudService {
 
   def deactivateVm(providerId: String, vmId: String, userId: String): IO[Either[String, String]] = {
     for {
-      providerResult <- ProviderDetailsRepository.getProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
+      providerResult <- ProviderDetailsRepository.fetchProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
       provider <- IO.fromEither(providerResult.leftMap(new RuntimeException(_))) // Unwraps the Either
       internalVmNameResult <- VmDetailsRepository.getInternalVmName(vmId, userId) // Returns IO[Either[String, String]]
       internalVmName <- IO.fromEither(internalVmNameResult) // Unwraps the Either
@@ -42,7 +42,7 @@ object VmCrudService {
 
   def deleteVm(providerId: String, vmId: String, userId: String): IO[Either[String, String]] = {
     for {
-      providerResult <- ProviderDetailsRepository.getProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
+      providerResult <- ProviderDetailsRepository.fetchProviderDetails(providerId) // Returns IO[Either[String, ProviderDetails]]
       provider <- IO.fromEither(providerResult.leftMap(new RuntimeException(_))) // Unwraps the Either
       internalVmNameResult <- VmDetailsRepository.getInternalVmName(vmId, userId) // Returns IO[Either[String, String]]
       internalVmName <- IO.fromEither(internalVmNameResult) // Unwraps the Either

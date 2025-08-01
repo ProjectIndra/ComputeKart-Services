@@ -9,17 +9,18 @@ import main.SqlDB
 
 case class TunnelDetails(
   userId: String,
-  username: String,
+  username: String
 )
 
 case class TunnelDetails2(
   tunnelNo: Int,
-  username: String,
+  username: String
 )
 
 object TunnelDetailsRepository {
 
-  def createNewTunnel(tunnelDetails: TunnelDetails): IO[(Int, String)] = {
+  /** Creates a new tunnel and returns the number of rows affected and the session token. */
+  def createNewTunnel(tunnelDetails: TunnelDetails): IO[Either[Throwable, String]] = {
     val sessionToken = UUID.randomUUID().toString
 
     val query =
@@ -28,12 +29,14 @@ object TunnelDetailsRepository {
         VALUES (${tunnelDetails.userId}, ${tunnelDetails.username}, ${sessionToken})
       """.update.run
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa).map(rowsAffected => (rowsAffected, sessionToken))
+    SqlDB.runUpdateQuery(query, "Create New Tunnel").map {
+      case Right(_) => Right(sessionToken) // Return the session token
+      case Left(error) => Left(error)
     }
   }
 
-  def verifyTunnelToken(sessionToken: String): IO[Option[TunnelDetails2]] = {
+  /** Verifies a tunnel token and retrieves the corresponding tunnel details. */
+  def verifyTunnelToken(sessionToken: String): IO[Either[Throwable, TunnelDetails2]] = {
     val query =
       sql"""
         SELECT tunnel_no, username
@@ -41,8 +44,6 @@ object TunnelDetailsRepository {
         WHERE session_token = $sessionToken
       """.query[TunnelDetails2].option
 
-    SqlDB.transactor.use { xa =>
-      query.transact(xa)
-    }
+    SqlDB.runQueryEither(query, "Verify Tunnel Token")
   }
 }

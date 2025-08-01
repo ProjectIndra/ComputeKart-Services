@@ -25,7 +25,6 @@ object AuthMiddleware {
   private val SECRET_KEY: String = config.getString("crypto.secretKey")
 
   def uiLoginRequired(route: Map[String, String] => Route): Route = extractRequestContext { ctx =>
-
     val authHeaderOpt = ctx.request.headers.find(_.is("authorization")).map(_.value)
 
     authHeaderOpt match {
@@ -39,8 +38,8 @@ object AuthMiddleware {
 
           val resultIO: IO[Either[String, User]] = tokenType match {
             case "BearerCLI" => verifyCliToken(token)
-            case "Bearer"    => verifyUiToken(token)
-            case _           => IO.pure(Left("Invalid token type"))
+            case "Bearer" => verifyUiToken(token)
+            case _ => IO.pure(Left("Invalid token type"))
           }
 
           onComplete(resultIO.unsafeToFuture()) {
@@ -78,16 +77,16 @@ object AuthMiddleware {
     }
   }
 
-
   private def verifyCliToken(token: String): IO[Either[String, User]] = {
     for {
       cliDetailsOpt <- CliDetailsRepository.findCliSessionByToken(token)
       cliDetails <- IO.fromOption(cliDetailsOpt)(new Exception("Invalid token"))
-      _ <- IO.raiseUnless(LocalDateTime.parse(cliDetails.cli_session_token_expiry_timestamp).isAfter(LocalDateTime.now()))(new Exception("Token expired"))
+      _ <- IO.raiseUnless(
+        LocalDateTime.parse(cliDetails.cli_session_token_expiry_timestamp).isAfter(LocalDateTime.now())
+      )(new Exception("Token expired"))
       userEither <- UserDetailsRepository.getClientDetails(cliDetails.user_id)
-      user <- IO.fromEither(userEither).flatMap {
-        case Some(userDetails) => IO.pure(userDetails)
-        case None => IO.raiseError(new Exception("Invalid user"))
+      user <- IO.fromEither(userEither).adaptError { case ex =>
+        new Exception(s"Error fetching user details: ${ex.getMessage}")
       }
     } yield Right(User(user.userId, user.username, Some(cliDetails.cli_id)))
   }
@@ -115,8 +114,7 @@ object AuthMiddleware {
       )
 
       userDetails <- UserDetailsRepository.getClientDetails(userId).flatMap {
-        case Right(Some(user)) => IO.pure(Right(User(user.userId, user.username, None)))
-        case Right(None) => IO.pure(Left("Invalid user"))
+        case Right(user: users.UserDetails) => IO.pure(Right(User(user.userId, user.username, None)))
         case Left(error) => IO.pure(Left(s"Error fetching user details: ${error.getMessage}"))
       }
     } yield userDetails

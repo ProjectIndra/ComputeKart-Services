@@ -91,7 +91,8 @@ object CliDetailsController extends BaseController {
         if (userId.isEmpty || vmName.isEmpty) {
           complete((400, Map("error" -> "User ID and VM Name are required").asJson))
         } else {
-          val result = VmDetailsRepository.getVmDetailsByName(vmName.get, userId.get)
+          val result = VmDetailsRepository
+            .getVmDetailsByName(vmName.get, userId.get)
             .flatMap(vmDetails => IO.fromEither(vmDetails))
             .flatMap { case (vmId, providerId, _) =>
               VmCrudService.deleteVm(providerId, vmId, userId.get)
@@ -119,7 +120,8 @@ object CliDetailsController extends BaseController {
         if (userId.isEmpty || vmName.isEmpty) {
           complete((400, Map("error" -> "User ID and VM Name are required").asJson))
         } else {
-          val result = VmDetailsRepository.getVmDetailsByName(vmName.get, userId.get)
+          val result = VmDetailsRepository
+            .getVmDetailsByName(vmName.get, userId.get)
             .flatMap(vmDetails => IO.fromEither(vmDetails))
             .flatMap { case (vmId, providerId, _) =>
               VmCrudService.forceRemoveVm(vmId, providerId, userId.get)

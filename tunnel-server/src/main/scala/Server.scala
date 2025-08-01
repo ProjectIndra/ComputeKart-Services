@@ -88,10 +88,7 @@ object TunnelServer {
     }
   }
 
-  /**
-    * Starts a listener for tunnel clients on port 9000.
-    * It accepts connections, reads the tunnel ID and session token,
-    * verifies the session token, and registers the tunnel if valid.
+  /** Starts a listener for tunnel clients on port 9000. It accepts connections, reads the tunnel ID and session token, verifies the session token, and registers the tunnel if valid.
     */
 
   def startTunnelListener(): Unit = {

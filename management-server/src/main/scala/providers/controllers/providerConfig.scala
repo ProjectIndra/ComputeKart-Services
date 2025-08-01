@@ -34,17 +34,21 @@ object ProviderConfigController extends BaseController {
             complete((400, Map("error" -> "Token is required").asJson))
           } else {
             val result = for {
-              provider <- ProviderDetailsRepository.getProviderByToken(managementServerVerificationToken.get)
-              providerId <- IO.fromOption(provider.map(_.providerId))(new RuntimeException("Invalid Token"))
+              providerEither <- ProviderDetailsRepository.getProviderByToken(managementServerVerificationToken.get)
+              provider <- IO.fromEither(providerEither).adaptError {
+                case ex => new RuntimeException(s"Invalid Token: ${ex.getMessage}")
+              }
 
-              providerConf <- ProviderDetailsRepository.getProviderConf(providerId)
-              config <- IO.fromOption(providerConf)(new RuntimeException("Provider configuration not found"))
+              providerConfEither <- ProviderDetailsRepository.getProviderConf(provider.providerId)
+              providerConf <- IO.fromEither(providerConfEither).adaptError {
+                case ex => new RuntimeException(s"Provider configuration not found: ${ex.getMessage}")
+              }
             } yield Map(
-              "max_ram" -> config.providerAllowedRam,
-              "max_cpu" -> config.providerAllowedVcpu,
-              "max_disk" -> config.providerAllowedStorage,
-              "max_vms" -> config.providerAllowedVms,
-              "max_networks" -> config.providerAllowedNetworks
+              "max_ram" -> providerConf.providerAllowedRam,
+              "max_cpu" -> providerConf.providerAllowedVcpu,
+              "max_disk" -> providerConf.providerAllowedStorage,
+              "max_vms" -> providerConf.providerAllowedVms,
+              "max_networks" -> providerConf.providerAllowedNetworks
             )
 
             onComplete(result.attempt.unsafeToFuture()) {
@@ -73,40 +77,42 @@ object ProviderConfigController extends BaseController {
           val providerAllowedNetworks = request.providerAllowedNetworks
 
           if (
-            request.providerId.isEmpty ||
-            request.providerAllowedRam <= 0 ||
-            request.providerAllowedVcpu <= 0 ||
-            request.providerAllowedStorage <= 0 ||
-            request.providerAllowedVms <= 0 ||
-            request.providerAllowedNetworks <= 0
+            providerId.isEmpty ||
+            providerAllowedRam <= 0 ||
+            providerAllowedVcpu <= 0 ||
+            providerAllowedStorage <= 0 ||
+            providerAllowedVms <= 0 ||
+            providerAllowedNetworks <= 0
           ) {
             complete((400, Map("error" -> "Missing or invalid required fields").asJson))
           } else {
             val result = for {
-              provider <- ProviderDetailsRepository.fetchFullProviderDetails(providerId)
-              FullProviderDetails <- IO.fromOption(provider)(new RuntimeException("Provider not found"))
+              providerEither <- ProviderDetailsRepository.getFullProviderDetails(providerId)
+              fullProviderDetails <- IO.fromEither(providerEither).adaptError {
+                case ex => new RuntimeException(s"Provider not found: ${ex.getMessage}")
+              }
 
               // Validate used specs against allowed specs
-              _ <- IO.raiseWhen(FullProviderDetails.providerUsedRam.exists(_.toInt > providerAllowedRam))(
+              _ <- IO.raiseWhen(fullProviderDetails.providerUsedRam.exists(_ > providerAllowedRam))(
                 new RuntimeException("More RAM already being used by clients than allowed.")
               )
-              _ <- IO.raiseWhen(FullProviderDetails.providerUsedVcpu.exists(_.toInt > providerAllowedVcpu))(
+              _ <- IO.raiseWhen(fullProviderDetails.providerUsedVcpu.exists(_ > providerAllowedVcpu))(
                 new RuntimeException("More VCPU already being used by clients than allowed.")
               )
-              _ <- IO.raiseWhen(FullProviderDetails.providerUsedStorage.exists(_.toInt > providerAllowedStorage))(
+              _ <- IO.raiseWhen(fullProviderDetails.providerUsedStorage.exists(_ > providerAllowedStorage))(
                 new RuntimeException("More Storage already being used by clients than allowed.")
               )
-              _ <- IO.raiseWhen(FullProviderDetails.providerUsedNetworks.exists(_.toInt > providerAllowedNetworks))(
+              _ <- IO.raiseWhen(fullProviderDetails.providerUsedNetworks.exists(_ > providerAllowedNetworks))(
                 new RuntimeException("More Networks already being used by clients than allowed.")
               )
-              _ <- IO.raiseWhen(FullProviderDetails.providerUsedVms.exists(_.toInt > providerAllowedVms))(
+              _ <- IO.raiseWhen(fullProviderDetails.providerUsedVms.exists(_ > providerAllowedVms))(
                 new RuntimeException("More VMs already being used by clients than allowed.")
               )
 
               // Send request to provider
               response <- ProviderService.sendUpdateRequestToProvider(
-                FullProviderDetails.providerUrl,
-                FullProviderDetails.managementServerVerificationToken.getOrElse(""),
+                fullProviderDetails.providerUrl,
+                fullProviderDetails.managementServerVerificationToken.getOrElse(""),
                 providerAllowedRam,
                 providerAllowedVcpu,
                 providerAllowedStorage,
@@ -116,7 +122,7 @@ object ProviderConfigController extends BaseController {
               _ <- response match {
                 case Left(errorMessage) =>
                   IO.raiseError(new RuntimeException(s"Failed to update provider configuration: $errorMessage"))
-                case Right(successMessage) =>
+                case Right(_) =>
                   IO.unit
               }
 

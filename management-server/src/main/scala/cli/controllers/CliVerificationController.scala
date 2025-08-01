@@ -17,7 +17,7 @@ case class CliSessionRequest(cli_verification_token: String, wireguard_endpoint:
 case class CliSessionResponse(message: String, session_token: String)
 
 object CliVerificationController extends BaseController {
-  
+
   val uiRoutes: Route =
     concat(
       path("getCliVerificationToken") {
@@ -59,15 +59,17 @@ object CliVerificationController extends BaseController {
                   val sessionToken = UUID.randomUUID().toString
                   val sessionExpiryTime = java.time.Instant.now().plusSeconds(365 * 24 * 60 * 60).toString // 1 year
 
-                  val insertResult = CliDetailsRepository.insertCliSession(
-                    userId,
-                    cliId,
-                    request.wireguard_endpoint,
-                    request.wireguard_public_key,
-                    sessionToken,
-                    sessionExpiryTime,
-                    request.cli_verification_token
-                  ).unsafeToFuture()
+                  val insertResult = CliDetailsRepository
+                    .insertCliSession(
+                      userId,
+                      cliId,
+                      request.wireguard_endpoint,
+                      request.wireguard_public_key,
+                      sessionToken,
+                      sessionExpiryTime,
+                      request.cli_verification_token
+                    )
+                    .unsafeToFuture()
 
                   onComplete(insertResult) {
                     case scala.util.Success(_) =>
