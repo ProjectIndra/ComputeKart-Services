@@ -28,7 +28,7 @@ object TunnelServer {
 
     val route =
       extractHost { hostHeader =>
-        val knownSuffixes = List(".127.0.0.1.nip.io", ".localhost", ".127.0.0.1.sslip.io")
+        val knownSuffixes = List(".127.0.0.1.nip.io", ".localhost", ".127.0.0.1.sslip.io", ".computekart.com")
         val subdomain = knownSuffixes.find(suffix => hostHeader.endsWith(suffix)) match {
           case Some(suffix) => hostHeader.stripSuffix(suffix)
           case None => hostHeader
@@ -126,7 +126,7 @@ object TunnelServer {
 
         result match {
           case Right(tunnelDetails) =>
-            val tunnelAndUsername = s"${tunnelDetails.tunnelNo}.${tunnelDetails.username}"
+            val tunnelAndUsername = s"${tunnelDetails.tunnelNo}-${tunnelDetails.username}"
             tunnelRegistry.put(tunnelAndUsername, clientSocket)
             println(s"[Server] Tunnel registered: $tunnelAndUsername")
             writer.println("SUCCESS")

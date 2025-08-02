@@ -20,18 +20,29 @@ case class TunnelDetails2(
 object TunnelDetailsRepository {
 
   /** Creates a new tunnel and returns the number of rows affected and the session token. */
-  def createNewTunnel(tunnelDetails: TunnelDetails): IO[Either[Throwable, String]] = {
+  def createNewTunnel(tunnelDetails: TunnelDetails): IO[Either[Throwable, (String, String)]] = {
     val sessionToken = UUID.randomUUID().toString
 
-    val query =
-      sql"""
-        INSERT INTO tunnels (user_id, username, session_token)
-        VALUES (${tunnelDetails.userId}, ${tunnelDetails.username}, ${sessionToken})
-      """.update.run
+    // First insert without RETURNING clause
+    val insertQuery = sql"""
+      INSERT INTO tunnels (user_id, username, session_token)
+      VALUES (${tunnelDetails.userId}, ${tunnelDetails.username}, $sessionToken)
+    """.update
 
-    SqlDB.runUpdateQuery(query, "Create New Tunnel").map {
-      case Right(_) => Right(sessionToken) // Return the session token
-      case Left(error) => Left(error)
+    // Then get the last inserted ID
+    val getLastIdQuery = sql"SELECT LAST_INSERT_ID()".query[Int].unique
+
+    // Combine both operations
+    val transaction = for {
+      _ <- insertQuery.run
+      id <- getLastIdQuery
+    } yield id
+
+    SqlDB.runQuery(transaction, "Create New Tunnel").map {
+      case Right(tunnelNo) => 
+        Right((tunnelNo.toString, sessionToken))
+      case Left(error) => 
+        Left(error)
     }
   }
 
